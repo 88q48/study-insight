@@ -31,14 +31,57 @@
     });
   }
 
+  // 当前数据来源：mock / api / fallback
+  var sourceInfo = { kind: "mock", url: "" };
+
+  function mockFallback(reason) {
+    if (!cfg.FALLBACK_TO_MOCK) {
+      return Promise.reject(new Error(reason));
+    }
+    sourceInfo = { kind: "fallback", url: reason };
+    return Promise.resolve(window.MOCK_DATA);
+  }
+
   function getData() {
     if (cfg.USE_MOCK) {
+      sourceInfo = { kind: "mock", url: "" };
       return Promise.resolve(window.MOCK_DATA);
     }
-    var url = cfg.API_BASE_URL
-            + "/devices/" + encodeURIComponent(cfg.DEVICE_ID)
-            + "/analysis?days=" + cfg.DAYS;
-    return fetchWithTimeout(url, cfg.TIMEOUT || 10000);
+
+    var base = (cfg.API_BASE_URL || "").replace(/\/$/, "");
+    var dev = encodeURIComponent(cfg.DEVICE_ID);
+    var days = cfg.DAYS;
+    var candidates = [
+      base + (cfg.ANALYSIS_PATH || "/analysis") + "?days=" + days,
+      base + "/devices/" + dev + "/analysis?days=" + days,
+      base + "/devices/" + dev + "/analysis",
+      base + "/analysis"
+    ];
+
+    // 去重后按顺序试，前一个失败再试下一个
+    var seen = {};
+    candidates = candidates.filter(function (u) {
+      if (seen[u]) { return false; }
+      seen[u] = 1;
+      return true;
+    });
+
+    function attempt(i) {
+      if (i >= candidates.length) {
+        return mockFallback("所有候选路径都失败");
+      }
+      var url = candidates[i];
+      return fetchWithTimeout(url, cfg.TIMEOUT || 10000)
+        .then(function (raw) {
+          sourceInfo = { kind: "api", url: url };
+          return raw;
+        })
+        .catch(function () {
+          return attempt(i + 1);
+        });
+    }
+
+    return attempt(0);
   }
 
   /* ---------- 图表容器 ---------- */
@@ -169,20 +212,35 @@
   }
 
   /* ---------- 页头与页脚 ---------- */
-  function renderMeta(isMock) {
+  function renderMeta() {
     var p = DATA.period || {};
     document.getElementById("meta-line").textContent =
-      "设备：" + DATA.device_id +
-      "　数据范围：" + String(p.start || "-").slice(0, 10) +
+      "🖥 设备：" + DATA.device_id +
+      "　🗓 数据范围：" + String(p.start || "-").slice(0, 10) +
       " ~ " + String(p.end || "-").slice(0, 10);
 
     var badge = document.getElementById("source-badge");
-    badge.textContent = isMock ? "演示数据（mock）" : "实时数据（API）";
-    badge.className = "badge" + (isMock ? "" : " real");
+    var kind = sourceInfo.kind;
+    if (kind === "api") {
+      badge.textContent = "🔗 已连接后端";
+      badge.className = "badge real";
+    } else if (kind === "fallback") {
+      badge.textContent = "🔌 后端未连通 · 演示数据";
+      badge.className = "badge err";
+    } else {
+      badge.textContent = "📦 演示数据（mock）";
+      badge.className = "badge";
+    }
 
-    document.getElementById("footer").textContent =
-      "数据来源：后端 /api/v1/devices/{device_id}/analysis" +
-      (isMock ? "（当前为 mock）" : "");
+    var foot = document.getElementById("footer");
+    if (kind === "api") {
+      foot.textContent = "数据来源：" + sourceInfo.url;
+    } else if (kind === "fallback") {
+      foot.textContent = "后端未连通（" + sourceInfo.url +
+        "），当前显示演示数据。后端启动后刷新页面即可自动切换。";
+    } else {
+      foot.textContent = "数据来源：本地 mock-data.js";
+    }
   }
 
   function showError(msg) {
@@ -204,7 +262,7 @@
 
     getData().then(function (data) {
       DATA = data;
-      renderMeta(!!cfg.USE_MOCK);
+      renderMeta();
       // 按当前激活的 Tab 渲染，避免只认死错题面板
       var active = document.querySelector(".tab.active");
       var initial = active ? active.dataset.tab : "error";

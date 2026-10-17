@@ -1,7 +1,9 @@
-# 错题管理与学情诊断系统
+# 📚 学情洞察 study-insight
+
+> 学情洞察：基于错题掌握与专注投入双维度的学习诊断系统
 
 把「错题摄入」与「专注投入」放在同一张表上对比，回答两个问题：
-错在哪、学得高不高效。
+**错在哪、学得高不高效**。
 
 ## 目录结构
 
@@ -28,6 +30,66 @@
 └── docs/
     └── api-fields.md       分析接口字段约定
 ```
+
+## 🔗 和后端联调
+
+后端（后端）跑在 **8010** 端口。联调只需改环境变量，不用动代码：
+
+```bash
+cd windows  # 或者任意目录
+set SI_API=http://127.0.0.1:8010/api/v1
+set SI_USE_MOCK=0
+streamlit run dashboard/app.py
+```
+
+后端不在本机时，把 `127.0.0.1` 换成对方的内网 IP（如 `http://192.168.1.8:8010/api/v1`），
+Windows 防火墙需要放行 8010。
+
+### 数据来源会自动识别
+
+| 情况 | 页面表现 |
+|---|---|
+| `USE_MOCK=1`（默认） | 📦 演示数据 |
+| 后端正常 | 🔗 已连接后端 + 实际请求地址 |
+| 后端没开 | 🔌 后端未连通，自动退回演示数据，不会白屏 |
+
+后端启动后刷新页面，会自动切到实时数据。
+
+### 字段对不上怎么办
+
+`dashboard/schema_adapter.py` 做了一层容错，下面这些写法都能识别：
+
+| 看板要的 | 后端可以写 |
+|---|---|
+| `total_errors` | `totalErrors` / `total` / `total_error_count` |
+| `subject` | `subjectName` / `name` |
+| `mastery_rate` | `masteryRate` / `rate`，且 `0.625` 和 `62.5` 都行 |
+| `date` | `day` / `stat_date` / `dt` |
+
+外层包一层 `{"data": {...}}` 也能自动拆开。
+如果 `efficiency_trend` 后端没给，会用 `trend` 和 `review_trend` 按日期拼出来。
+
+### 自查命令
+
+```bash
+cd dashboard
+python -c "import api_client; print(api_client.check_health())"
+```
+
+返回 `'status': 'ok'` 说明通了；`down` 就是没连上，提示里会写明卡在哪。
+
+### 网页版注意
+
+用 `file://` 双击打开时，浏览器会拦住对 `localhost` 的跨域请求。
+联调请改用 http 方式：
+
+```bash
+cd dashboard/web
+python -m http.server 8080
+# 浏览器访问 http://127.0.0.1:8080
+```
+
+---
 
 ## 快速开始
 
@@ -131,5 +193,7 @@ Windows 客户端 ─┐
 ```
 https://github.com/<owner>/study-insight
 ```
+
+报名表要用的项目名称和简介，见 [`docs/project-intro.md`](docs/project-intro.md)。
 
 主开发分支是 `main`。早期的 `master` 与 `windows` 分支内容已并入 `main`，均已删除。

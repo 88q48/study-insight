@@ -10,6 +10,7 @@
 
 import streamlit as st
 
+import api_client
 from api_client import fetch_analysis
 from charts import (
     radar_subject, bar_subject_mastery, bar_knowledge_points,
@@ -39,9 +40,25 @@ efficiency = data["efficiency_trend"]
 
 st.title("📚 错题管理与学情诊断")
 st.caption(
-    f"设备：{data['device_id']}　"
-    f"数据范围：{data['period']['start'][:10]} ~ {data['period']['end'][:10]}"
+    f"🖥 设备：{data['device_id']}　"
+    f"🗓 数据范围：{data['period']['start'][:10]} ~ {data['period']['end'][:10]}"
 )
+
+# ---------- 数据来源状态 ----------
+_status = api_client.LAST_STATUS
+if _status["source"] == "api":
+    st.success(f"🔗 已连接后端　{_status['url']}")
+    for _w in _status["warnings"]:
+        st.warning(f"⚠️ {_w}")
+elif _status["source"] == "fallback":
+    NL = chr(10)
+    st.warning(
+        "🔌 后端未连通，当前显示演示数据" + NL + NL
+        + "原因：" + str(_status["detail"]) + NL + NL
+        + "后端启动后刷新页面即可自动切换。"
+    )
+else:
+    st.info("📦 当前显示演示数据（mock）")
 
 tab_error, tab_focus = st.tabs(["📕 错题诊断", "⏱ 专注与效率"])
 
