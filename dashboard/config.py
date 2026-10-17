@@ -46,11 +46,13 @@ DAYS = int(os.environ.get("SI_DAYS", "7"))
 
 
 # 后端接口路径模板，按顺序尝试。
-# 不同人写的路由风格不一样，多试几个总有一个能中。
+#
+# 顺序有讲究：正式契约排最前，过渡版垫底。
+# 这样后端补齐 11 字段后，会自动走正式地址，不用改配置。
 ANALYSIS_PATHS = [
-    "/analysis?days={days}",
-    "/devices/{device_id}/analysis?days={days}",
+    "/devices/{device_id}/analysis?days={days}",   # 正式契约
     "/devices/{device_id}/analysis",
+    "/analysis?days={days}",                       # 过渡版（后端当前实现）
     "/analysis",
 ]
 

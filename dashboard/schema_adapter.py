@@ -388,3 +388,84 @@ def check(normalized):
     if normalized["error_stats"]["total_errors"] == 0:
         warns.append("error_stats 全为 0：错题总数没取到")
     return warns
+
+
+# ----------------------------------------------------------
+# 接口完整度：联调时用来看还差哪些字段
+# ----------------------------------------------------------
+
+# 正式契约要求的 11 个顶层字段
+CONTRACT_FIELDS = [
+    "device_id", "period", "summary", "trend", "app_ranking",
+    "group_comparison", "error_stats", "subject_distribution",
+    "knowledge_points", "review_trend", "efficiency_trend",
+]
+
+# 每个字段对应看板上一块内容，缺了会怎样
+FIELD_USAGE = {
+    "device_id": "页面顶部设备号",
+    "period": "页面顶部时间范围",
+    "summary": "专注时长指标卡",
+    "trend": "每日专注时长趋势图",
+    "app_ranking": "应用类别占比图",
+    "group_comparison": "个人 vs 群体对比",
+    "error_stats": "错题四项指标卡 + 消化漏斗",
+    "subject_distribution": "科目雷达图 + 消化进度图",
+    "knowledge_points": "知识点薄弱榜",
+    "review_trend": "每日新增 vs 消灭",
+    "efficiency_trend": "专注时长 vs 产出的双轴图",
+}
+
+
+def contract_status(normalized):
+    """检查符合正式契约的程度。
+
+    返回：
+        {
+          "level": "full" / "partial" / "transitional",
+          "present": [...],
+          "missing": [(字段名, 缺了影响什么), ...],
+          "hint": "给人看的一句话"
+        }
+    """
+    present = []
+    missing = []
+
+    for f in CONTRACT_FIELDS:
+        v = normalized.get(f)
+        ok = False
+        if isinstance(v, list):
+            ok = len(v) > 0
+        elif isinstance(v, dict):
+            # 空 dict 或全零也算没给
+            ok = any(
+                (isinstance(x, (int, float)) and x != 0)
+                or (isinstance(x, str) and x)
+                or (isinstance(x, (list, dict)) and x)
+                for x in v.values()
+            )
+        elif v:
+            ok = True
+
+        if ok:
+            present.append(f)
+        else:
+            missing.append((f, FIELD_USAGE.get(f, "")))
+
+    n = len(present)
+    if n == len(CONTRACT_FIELDS):
+        level = "full"
+        hint = "接口已符合正式契约（11 个字段齐全）"
+    elif n >= 6:
+        level = "partial"
+        hint = f"接口有 {n}/{len(CONTRACT_FIELDS)} 个字段，还差 {len(missing)} 块"
+    else:
+        level = "transitional"
+        hint = f"当前是过渡版接口（{n}/{len(CONTRACT_FIELDS)} 个字段）"
+
+    return {
+        "level": level,
+        "present": present,
+        "missing": missing,
+        "hint": hint,
+    }

@@ -13,7 +13,7 @@ import requests
 
 import config
 from mock_data import get_mock_response_from_events
-from schema_adapter import normalize, check
+from schema_adapter import normalize, check, contract_status
 
 
 # 上一次请求的结果，界面用来显示数据来源
@@ -22,6 +22,7 @@ LAST_STATUS = {
     "url": None,
     "detail": "",
     "warnings": [],
+    "contract": None,       # 接口符合正式契约的程度
 }
 
 
@@ -31,6 +32,7 @@ def _mock(device_id, reason="", source="mock"):
         "url": None,
         "detail": reason,
         "warnings": [],
+        "contract": None,
     })
     return get_mock_response_from_events(device_id=device_id)
 
@@ -93,12 +95,14 @@ def fetch_analysis(device_id=None):
 
     data = normalize(raw, device_id=dev)
     warns = check(data)
+    contract = contract_status(data)
 
     LAST_STATUS.update({
         "source": "api",
         "url": url,
         "detail": "",
         "warnings": warns,
+        "contract": contract,
     })
     return data
 

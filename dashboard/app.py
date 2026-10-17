@@ -46,10 +46,22 @@ st.caption(
 
 # ---------- 数据来源状态 ----------
 _status = api_client.LAST_STATUS
+_contract = _status.get("contract")
+
 if _status["source"] == "api":
     st.success(f"🔗 已连接后端　{_status['url']}")
-    for _w in _status["warnings"]:
-        st.warning(f"⚠️ {_w}")
+
+    # 接口符合正式契约的程度
+    if _contract:
+        if _contract["level"] == "full":
+            st.success(f"✅ {_contract['hint']}")
+        else:
+            _miss = "、".join(f"`{f}`" for f, _ in _contract["missing"])
+            st.info(
+                f"🧩 {_contract['hint']}　缺：{_miss}"
+                + chr(10) + chr(10)
+                + "缺的部分会显示占位图，等后端补齐后刷新即可，不用改代码。"
+            )
 elif _status["source"] == "fallback":
     NL = chr(10)
     st.warning(
