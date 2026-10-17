@@ -93,3 +93,59 @@ device           device_id(PK) platform registered_at
 ## 代码放这里
 
 例如 `backend/main.py`、`backend/db.py`、`backend/models.py`。
+
+---
+
+## 当前实现（联调骨架）
+
+先按“能跑通前端 → 后端 → 看板”的最小链路落地了一版，代码与测试都在本目录：
+
+| 文件 | 作用 |
+|---|---|
+| `backend/main.py` | FastAPI 应用（已开 CORS） |
+| `backend/tests/test_api.py` | 3 个冒烟测试，锁定响应字段 |
+| `backend/requirements.txt` | fastapi / uvicorn[standard] |
+| `backend/pytest.ini` | 只收集 `tests/` 下的用例 |
+
+### 已实现的接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/v1/errors` | 接收错题。当前字段是联调简化版：`subject` / `knowledge_point` / `question_content` / `created_at`；只打印到终端，不落库 |
+| GET | `/api/v1/analysis` | 返回看板假数据：`summary` / `subject_distribution` / `review_trend` |
+
+### 启动
+
+```bash
+cd backend
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8010
+```
+
+- 接口文档：<http://127.0.0.1:8010/docs>
+- 8000 在部分 Windows 机器上属于系统保留端口（启动报 `WinError 10013`），改用 8010，前端把 base URL 同步改掉即可。
+
+### 跑测试
+
+```bash
+cd backend
+pip install pytest httpx
+python -m pytest -q
+```
+
+### 与正式契约的差距（下一步）
+
+联调版先按简化 JSON 落地，和本文件上半部分、`docs/api-fields.md` 的正式约定还有差距，接真实数据前需要补齐：
+
+- 路径：正式为 `GET /api/v1/devices/{device_id}/analysis?days=7`，当前是 `GET /api/v1/analysis`
+- 返回：正式要 11 个顶层字段（`device_id`、`period`、`summary`、`trend`、`app_ranking`、`group_comparison`、`error_stats`、`subject_distribution`、`knowledge_points`、`review_trend`、`efficiency_trend`），当前只有 3 个
+- 上传：正式错题字段含 `error_id` / `device_id` / `content` / `mastered` / `review_count`，当前缺
+- 尚未实现：`POST /api/v1/events/batch`、`GET /api/v1/devices/{device_id}/sync`、`GET /api/v1/health`
+- 数据仍是内存假数据，未接数据库
+
