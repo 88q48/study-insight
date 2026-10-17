@@ -163,8 +163,21 @@ def norm_group(raw):
     }
 
 
-def norm_error_stats(raw):
-    d = as_dict(raw)
+def norm_error_stats(raw, *fallbacks):
+    """错题总览。
+
+    有些后端把错题统计放在 summary 里（而不是独立的 error_stats），
+    所以这里可以接受多个候选源，按顺序取第一个取到值的。
+    """
+    sources = [raw] + list(fallbacks)
+    for s in sources:
+        st = _error_stats_from(as_dict(s))
+        if st["total_errors"] > 0:
+            return st
+    return _error_stats_from(as_dict(raw))
+
+
+def _error_stats_from(d):
     total = int(num(pick(d, "total_errors", "totalErrors", "total",
                          "total_error_count", "totalErrorCount")))
     mastered = int(num(pick(d, "mastered_errors", "masteredErrors", "mastered",
@@ -248,7 +261,8 @@ def norm_review_trend(raw):
                                       "new", "created"))),
             "resolved": int(num(pick(d, "resolved", "resolved_count",
                                      "resolvedCount", "eliminated",
-                                     "mastered_today"))),
+                                     "mastered_today", "mastered",
+                                     "masteredCount", "mastered_count"))),
         })
     return out
 
@@ -275,7 +289,8 @@ def norm_efficiency_trend(raw, trend_list=None, review_list=None):
             "new_errors": int(num(pick(d, "new_errors", "newErrors",
                                        "new_added", "newAdded"))),
             "resolved_errors": int(num(pick(d, "resolved_errors", "resolvedErrors",
-                                            "resolved", "mastered"))),
+                                            "resolved", "mastered",
+                                            "mastered_count"))),
         })
 
     if out:
@@ -328,7 +343,9 @@ def normalize(raw, device_id="win_device_01"):
                 d = inner
                 break
 
-    trend_n = norm_trend(pick(d, "trend", "daily_trend", "dailyTrend"))
+    trend_n = norm_trend(
+        pick(d, "trend", "daily_trend", "dailyTrend", "focus_trend",
+             "focusTrend"))
     review_n = norm_review_trend(
         pick(d, "review_trend", "reviewTrend", "review"))
 
@@ -342,7 +359,9 @@ def normalize(raw, device_id="win_device_01"):
         "group_comparison": norm_group(
             pick(d, "group_comparison", "groupComparison", "group")),
         "error_stats": norm_error_stats(
-            pick(d, "error_stats", "errorStats", "errors_summary")),
+            pick(d, "error_stats", "errorStats", "errors_summary"),
+            # 有后端把错题统计塞进 summary，这里兜一层
+            pick(d, "summary", "overview")),
         "subject_distribution": norm_subjects(
             pick(d, "subject_distribution", "subjectDistribution",
                  "subjects", "subject_stats")),

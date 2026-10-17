@@ -96,22 +96,31 @@ with tab_error:
     # ---------- 诊断结论 ----------
     st.subheader("🩺 诊断结论")
     subjects = data["subject_distribution"]
-    weakest = max(subjects, key=lambda s: s["error_count"])
-    slowest = min(subjects, key=lambda s: s["mastery_rate"])
-    top_point = data["knowledge_points"][0]
+    points = data["knowledge_points"]
 
-    st.write(
-        f"- 错题最多的是 **{weakest['subject']}**，"
-        f"累计 {weakest['error_count']} 道，已掌握 {weakest['mastered_count']} 道。"
-    )
-    st.write(
-        f"- 消化最慢的是 **{slowest['subject']}**，"
-        f"掌握率 {slowest['mastery_rate']}%，优先安排复盘。"
-    )
-    st.write(
-        f"- 最薄弱的知识点是 **{top_point['subject']} · {top_point['knowledge_point']}**，"
-        f"错了 {top_point['error_count']} 次。"
-    )
+    if subjects:
+        weakest = max(subjects, key=lambda s: s["error_count"])
+        slowest = min(subjects, key=lambda s: s["mastery_rate"])
+        st.write(
+            f"- 错题最多的是 **{weakest['subject']}**，"
+            f"累计 {weakest['error_count']} 道，"
+            f"已掌握 {weakest['mastered_count']} 道。"
+        )
+        st.write(
+            f"- 消化最慢的是 **{slowest['subject']}**，"
+            f"掌握率 {slowest['mastery_rate']}%，优先安排复盘。"
+        )
+    else:
+        st.write("- 后端还没给出分科数据，暂时无法判断偏科情况。")
+
+    if points:
+        top_point = points[0]
+        st.write(
+            f"- 最薄弱的知识点是 **{top_point['subject']} · "
+            f"{top_point['knowledge_point']}**，错了 {top_point['error_count']} 次。"
+        )
+    else:
+        st.write("- 后端还没给出知识点明细，薄弱项待补充。")
 
 
 # ==========================================================
@@ -136,7 +145,11 @@ with tab_focus:
                         use_container_width=True)
 
     st.plotly_chart(bar_group_compare(summary, group), use_container_width=True)
-    st.info(f"你在群体中排名：第 **{group['my_rank']}** 名 / 共 **{group['group_size']}** 人")
+    if group["group_size"] > 0:
+        st.info(
+            f"你在群体中排名：第 **{group['my_rank']}** 名 / "
+            f"共 **{group['group_size']}** 人"
+        )
 
     # ---------- 效率诊断 ----------
     st.subheader("🩺 效率诊断")
@@ -153,6 +166,8 @@ with tab_focus:
 
     total_hours = sum(d["focus_hours"] for d in efficiency)
     total_resolved = sum(d["resolved_errors"] for d in efficiency)
+    if not efficiency:
+        tips.append("后端还没给出专注时长，效率诊断暂时无法进行。")
     if total_hours > 0:
         per_hour = total_resolved / total_hours
         tips.append(

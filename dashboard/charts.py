@@ -12,12 +12,30 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
+def _empty_figure(message, title="暂无数据"):
+    """数据为空时给一张带说明的空图，避免整页崩掉。"""
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message, x=0.5, y=0.5, xref="paper", yref="paper",
+        showarrow=False, font=dict(size=14, color="#9aa3b2"),
+    )
+    fig.update_layout(
+        title=title,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    return fig
+
+
 # ==========================================================
 # 一、错题诊断
 # ==========================================================
 
 def radar_subject(subject_distribution):
     """各科错题分布雷达图，一眼看出偏科。"""
+    if not subject_distribution:
+        return _empty_figure("后端还没提供分科数据", "各科错题分布")
     df = pd.DataFrame(subject_distribution)
     # 雷达图要闭合，把第一个点接到末尾
     df_closed = pd.concat([df, df.iloc[[0]]], ignore_index=True)
@@ -36,6 +54,8 @@ def radar_subject(subject_distribution):
 
 def bar_subject_mastery(subject_distribution):
     """各科掌握进度：错题总量 vs 已掌握。"""
+    if not subject_distribution:
+        return _empty_figure("后端还没提供分科数据", "各科错题消化进度")
     df = pd.DataFrame(subject_distribution)
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -58,6 +78,8 @@ def bar_subject_mastery(subject_distribution):
 
 def bar_knowledge_points(knowledge_points, top_n=10):
     """知识点薄弱榜 Top N。"""
+    if not knowledge_points:
+        return _empty_figure("后端还没提供知识点数据", "知识点薄弱榜")
     df = pd.DataFrame(knowledge_points).head(top_n)
     df = df.sort_values("error_count")
     label = df["subject"] + " · " + df["knowledge_point"]
@@ -93,6 +115,8 @@ def funnel_mastery(error_stats):
 
 def line_review_trend(review_trend):
     """每日新增 vs 消灭错题。"""
+    if not review_trend:
+        return _empty_figure("后端还没提供每日复习数据", "每日新增 vs 消灭")
     df = pd.DataFrame(review_trend)
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -119,6 +143,12 @@ def line_review_trend(review_trend):
 
 def dual_axis_efficiency(efficiency_trend):
     """专注时长（柱）vs 消灭错题（线）——识别「假努力」的核心图。"""
+    if not efficiency_trend:
+        return _empty_figure(
+            "缺少专注时长或错题数据，无法对比" + chr(10)
+            + "等后端补齐 trend / review_trend 后会自动出图",
+            "专注时长 vs 错题产出",
+        )
     df = pd.DataFrame(efficiency_trend)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -152,6 +182,8 @@ def dual_axis_efficiency(efficiency_trend):
 
 def line_focus_trend(trend):
     """每日专注时长趋势（原「使用时长」改口径为学习类专注时长）。"""
+    if not trend:
+        return _empty_figure("后端还没提供每日专注时长", "每日专注时长趋势")
     df = pd.DataFrame(trend)
     df["hours"] = df["total_duration_seconds"] / 3600
 
@@ -167,6 +199,8 @@ def line_focus_trend(trend):
 
 def pie_app_category(app_ranking):
     """学习投入的类别构成。"""
+    if not app_ranking:
+        return _empty_figure("后端还没提供应用使用数据", "应用类别占比")
     df = pd.DataFrame(app_ranking)
     df = df.groupby("category", as_index=False)["duration_seconds"].sum()
     df["hours"] = df["duration_seconds"] / 3600
