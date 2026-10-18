@@ -197,23 +197,6 @@ def line_focus_trend(trend):
     return fig
 
 
-def pie_app_category(app_ranking):
-    """学习投入的类别构成。"""
-    if not app_ranking:
-        return _empty_figure("后端还没提供应用使用数据", "应用类别占比")
-    df = pd.DataFrame(app_ranking)
-    df = df.groupby("category", as_index=False)["duration_seconds"].sum()
-    df["hours"] = df["duration_seconds"] / 3600
-
-    fig = px.pie(
-        df, names="category", values="duration_seconds",
-        title="应用类别占比",
-        hover_data=["hours"], hole=0.42,
-    )
-    fig.update_layout(margin=dict(l=30, r=30, t=60, b=30))
-    return fig
-
-
 def bar_group_compare(summary, group_comparison):
     """个人 vs 群体的专注时长对比。"""
     metrics = ["日均", "中位数", "P90"]

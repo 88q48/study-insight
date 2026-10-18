@@ -426,7 +426,7 @@ FIELD_USAGE = {
     "period": "页面顶部时间范围",
     "summary": "专注时长指标卡",
     "trend": "每日专注时长趋势图",
-    "app_ranking": "应用类别占比图",
+    "app_ranking": "已移除对应图表，字段保留做兼容",
     "group_comparison": "个人 vs 群体对比",
     "error_stats": "错题四项指标卡 + 消化漏斗",
     "subject_distribution": "科目雷达图 + 消化进度图",

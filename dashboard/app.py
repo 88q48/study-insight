@@ -15,7 +15,7 @@ from api_client import fetch_analysis
 from charts import (
     radar_subject, bar_subject_mastery, bar_knowledge_points,
     funnel_mastery, line_review_trend, dual_axis_efficiency,
-    line_focus_trend, pie_app_category, bar_group_compare,
+    line_focus_trend, bar_group_compare,
     build_redo_plan, redo_plan_text,
 )
 
@@ -183,12 +183,7 @@ with tab_focus:
 
     st.plotly_chart(dual_axis_efficiency(efficiency), use_container_width=True)
 
-    col_l, col_r = st.columns(2)
-    with col_l:
-        st.plotly_chart(line_focus_trend(data["trend"]), use_container_width=True)
-    with col_r:
-        st.plotly_chart(pie_app_category(data["app_ranking"]),
-                        use_container_width=True)
+    st.plotly_chart(line_focus_trend(data["trend"]), use_container_width=True)
 
     st.plotly_chart(bar_group_compare(summary, group), use_container_width=True)
     if group["group_size"] > 0:

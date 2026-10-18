@@ -256,7 +256,6 @@
 
     renderChart("chart-dual", window.Charts.dualAxis(d.efficiency_trend));
     renderChart("chart-focus-line", window.Charts.lineFocus(d.trend));
-    renderChart("chart-category", window.Charts.pieCategory(d.app_ranking));
     renderChart("chart-group", window.Charts.barGroup(d.summary, d.group_comparison));
 
     var g = d.group_comparison;

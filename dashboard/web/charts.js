@@ -238,27 +238,6 @@
       });
     },
 
-    pieCategory: function (appRanking) {
-      var totals = {};
-      appRanking.forEach(function (item) {
-        totals[item.category] = (totals[item.category] || 0) + item.duration_seconds;
-      });
-      var data = Object.keys(totals).map(function (k) {
-        return { name: k, value: Math.round(totals[k] / 36) / 100 };
-      });
-      return Object.assign(base(), {
-        tooltip: { trigger: "item", formatter: "{b}：{c} 小时（{d}%）", confine: true },
-        legend: { bottom: 0, icon: "circle", textStyle: { color: "#6b7280", fontSize: 12 } },
-        series: [{
-          type: "pie",
-          radius: ["45%", "70%"],
-          center: ["50%", "44%"],
-          itemStyle: { borderColor: "#fff", borderWidth: 2 },
-          label: { formatter: "{b} {d}%", color: "#374151", fontSize: 11 },
-          data: data
-        }]
-      });
-    },
 
     barGroup: function (summary, group) {
       var me = [summary.avg_daily_seconds, summary.median_daily_seconds, summary.p90_daily_seconds]
