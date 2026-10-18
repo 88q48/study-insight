@@ -96,42 +96,79 @@ device           device_id(PK) platform registered_at
 
 ---
 
-## 当前实现（联调骨架）
+## 当前实现（SQLite 落库 + 正式分析接口）
 
-先按“能跑通前端 → 后端 → 看板”的最小链路落地了一版，代码与测试都在本目录：
+### 代码结构
 
 | 文件 | 作用 |
 |---|---|
-| `backend/main.py` | FastAPI 应用（已开 CORS） |
-| `backend/tests/test_api.py` | 3 个冒烟测试，锁定响应字段 |
-| `backend/requirements.txt` | fastapi / uvicorn[standard] |
-| `backend/pytest.ini` | 只收集 `tests/` 下的用例 |
+| `main.py` | FastAPI 应用与接口定义 |
+| `db.py` | SQLite 连接、建表、错题 / 使用记录读写 |
+| `analytics.py` | 聚合 11 个顶层字段（错题 + 专注 + 交叉） |
+| `seed_demo.py` | 演示数据：120 道错题 + 7 天使用记录 |
+| `tests/test_api.py` | 7 个接口测试，使用临时库 |
 
-### 已实现的接口
+### 数据表
+
+- `error_record`：`error_id`(PK)、`device_id`、`subject`、`knowledge_point`、`content`、`created_at`、`mastered`、`review_count`、`mastered_at`、`received_at`
+- `usage_event`：`event_id`(PK)、`device_id`、`platform`、`app_key`、`app_name`、`category`、`start_at`、`end_at`、`duration_seconds`、`received_at`
+
+错题按 `error_id`、使用记录按 `event_id` 去重（`ON CONFLICT DO NOTHING`），重复上传不会覆盖已有数据。
+
+### 接口
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/v1/errors` | 接收错题。当前字段是联调简化版：`subject` / `knowledge_point` / `question_content` / `created_at`；只打印到终端，不落库 |
-| GET | `/api/v1/analysis` | 返回看板假数据：`summary` / `subject_distribution` / `review_trend` |
+| POST | `/api/v1/errors` | 上传错题并落库；兼容 `question_content` 旧字段；不传 `error_id` 时自动生成 |
+| PATCH | `/api/v1/errors/{error_id}` | 更新 `mastered` / `review_count` |
+| GET | `/api/v1/errors?device_id=&limit=&subject=` | 查看最近错题 |
+| POST | `/api/v1/events/batch` | 批量上传使用记录，支持数组或 `{"events": [...]}` |
+| GET | `/api/v1/devices/{device_id}/analysis?days=7` | 正式契约，11 个顶层字段 |
+| GET | `/api/v1/analysis?device_id=&days=` | 旧路径兼容，返回同样结构 |
+| GET | `/api/v1/devices/{device_id}/sync` | 最近同步时间与条数 |
+| GET | `/api/v1/health` | 健康检查 |
+
+### summary 与 error_stats 已分开
+
+- `summary` 只放专注时长：`total_duration_seconds` / `avg_daily_seconds` / `median_daily_seconds` / `p90_daily_seconds`
+- 错题总览统一放 `error_stats`：`total_errors` / `mastered_errors` / `reviewing_errors` / `mastery_rate`
+
+C 的看板已按这个口径做兼容，前端不用再改。
+
+### 专注与交叉数据
+
+- `trend`：按天汇总 `usage_event`，缺失日期补 0，保证 7 天日期轴完整
+- `app_ranking`：按 `app_key` 汇总，`app_name` / `category` 由后端映射（Chrome / 微信 / 抖音 / 学习通 / B站）
+- `knowledge_points`：按（科目，知识点）汇总，各科知识点之和等于该科错题总数
+- `efficiency_trend`：用 `trend` 与 `review_trend` 按日期对齐生成
+- `group_comparison`：暂按 20 人班给占位值，接入多设备后换成真实统计
 
 ### 启动
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows
 .venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8010
+python main.py          # 默认 8010，与看板配置一致
 ```
 
 - 接口文档：<http://127.0.0.1:8010/docs>
-- 8000 在部分 Windows 机器上属于系统保留端口（启动报 `WinError 10013`），改用 8010，前端把 base URL 同步改掉即可。
+- 端口可覆盖：`$env:PORT=8010`（8000 在部分 Windows 机器上被系统保留）
+- 数据库路径可覆盖：`$env:SI_DB_PATH="D:\data\study.db"`
 
-### 跑测试
+### 演示数据
+
+空库首次启动会自动写入 120 道错题（数学 45 / 物理 35 / 英语 40，掌握 85，掌握率 70.8%）和最近 7 天的使用记录，C 的三张空图会立即有数据。
+
+```bash
+python seed_demo.py            # 幂等写入
+python seed_demo.py --reset    # 删除演示数据后重写
+```
+
+接真实数据时用 `$env:SI_SEED_DEMO=0` 关闭自动写入。演示数据的 id 分别是 `err_demo_*` 和 `evt_demo_*`，不影响真实记录。
+
+### 测试
 
 ```bash
 cd backend
@@ -139,13 +176,4 @@ pip install pytest httpx
 python -m pytest -q
 ```
 
-### 与正式契约的差距（下一步）
-
-联调版先按简化 JSON 落地，和本文件上半部分、`docs/api-fields.md` 的正式约定还有差距，接真实数据前需要补齐：
-
-- 路径：正式为 `GET /api/v1/devices/{device_id}/analysis?days=7`，当前是 `GET /api/v1/analysis`
-- 返回：正式要 11 个顶层字段（`device_id`、`period`、`summary`、`trend`、`app_ranking`、`group_comparison`、`error_stats`、`subject_distribution`、`knowledge_points`、`review_trend`、`efficiency_trend`），当前只有 3 个
-- 上传：正式错题字段含 `error_id` / `device_id` / `content` / `mastered` / `review_count`，当前缺
-- 尚未实现：`POST /api/v1/events/batch`、`GET /api/v1/devices/{device_id}/sync`、`GET /api/v1/health`
-- 数据仍是内存假数据，未接数据库
-
+测试使用临时数据库，不会碰 `backend/study_insight.db`。

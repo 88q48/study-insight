@@ -17,6 +17,8 @@ env/
 
 # 本地数据库（跑测试时自动生成，不要提交）
 *.db
+*.db-wal
+*.db-shm
 
 # Streamlit
 .streamlit/secrets.toml
