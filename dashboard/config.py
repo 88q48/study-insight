@@ -22,7 +22,7 @@ def _env_bool(name, default):
     return v.strip().lower() in ("1", "true", "yes", "y", "on")
 
 
-# 后端 API 基础地址（后端的 FastAPI 跑在 8010）
+# 后端 API 基础地址
 API_BASE_URL = os.environ.get(
     "SI_API", "http://127.0.0.1:8010/api/v1"
 )
@@ -52,7 +52,7 @@ DAYS = int(os.environ.get("SI_DAYS", "7"))
 ANALYSIS_PATHS = [
     "/devices/{device_id}/analysis?days={days}",   # 正式契约
     "/devices/{device_id}/analysis",
-    "/analysis?days={days}",                       # 过渡版（后端当前实现）
+    "/analysis?days={days}",                       # 过渡版（旧接口，仅做兼容）
     "/analysis",
 ]
 

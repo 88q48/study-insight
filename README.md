@@ -33,7 +33,7 @@
 
 ## 🔗 和后端联调
 
-后端（后端）跑在 **8010** 端口。联调只需改环境变量，不用动代码：
+后端跑在 **8010** 端口。联调只需改环境变量，不用动代码：
 
 ```bash
 cd windows  # 或者任意目录
@@ -202,9 +202,7 @@ Windows 客户端 ─┐
 
 ## 仓库
 
-```
-https://github.com/<owner>/study-insight
-```
+仓库名 `study-insight`，地址见 GitHub 页面。
 
 报名表要用的项目名称和简介，见 [`docs/project-intro.md`](docs/project-intro.md)。
 

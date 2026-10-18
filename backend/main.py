@@ -101,7 +101,7 @@ class ErrorIn(BaseModel):
     subject: str                          # 科目，如 "数学"
     knowledge_point: str | None = None    # 知识点，空则归入 "未分类"
     content: str | None = None            # 题目内容（正式字段）
-    question_content: str | None = None   # 旧字段，兼容客户端已经发出的请求
+    question_content: str | None = None   # 旧字段，兼容客户端已发出的请求
     created_at: datetime | None = None    # 不传时用服务器当前时间
     mastered: bool = False
     review_count: int = Field(default=0, ge=0)

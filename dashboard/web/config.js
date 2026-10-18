@@ -11,9 +11,9 @@
  */
 window.CONFIG = {
   // true = 用 mock-data.js 里的数据；false = 请求后端
-  USE_MOCK: true,
+  USE_MOCK: false,
 
-  // 后端接口前缀（后端的 FastAPI 跑在 8010）
+  // 后端接口前缀
   API_BASE_URL: "http://127.0.0.1:8010/api/v1",
 
   // 接口路径：留一个就够，填后端实际给的那条
