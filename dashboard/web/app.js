@@ -51,10 +51,11 @@
     var base = (cfg.API_BASE_URL || "").replace(/\/$/, "");
     var dev = encodeURIComponent(cfg.DEVICE_ID);
     var days = cfg.DAYS;
+    // 正式契约排最前，过渡版垫底
     var candidates = [
-      base + (cfg.ANALYSIS_PATH || "/analysis") + "?days=" + days,
       base + "/devices/" + dev + "/analysis?days=" + days,
       base + "/devices/" + dev + "/analysis",
+      base + (cfg.ANALYSIS_PATH || "/analysis") + "?days=" + days,
       base + "/analysis"
     ];
 
