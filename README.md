@@ -9,7 +9,7 @@
 
 ```
 .
-├── dashboard/        C 模块：学情诊断看板
+├── dashboard/        看板端：学情诊断看板
 │   ├── app.py              Streamlit 主页面（两个 Tab）
 │   ├── charts.py           图表函数（Plotly，9 张图）
 │   ├── config.py           配置：API 地址、设备 ID、是否用 mock
@@ -18,13 +18,13 @@
 │   ├── error_mock.py       结果数据：错题、掌握率、复习进度
 │   └── web/                静态网页（ECharts，双击即可打开）
 │
-├── windows/          A 模块：Windows 采集客户端
+├── windows/          客户端：Windows 采集
 │   ├── app/
 │   │   ├── database.py         SQLite 建表、应用表、会话表、设置表
 │   │   └── usage_tracker.py    前台窗口识别、空闲检测、会话管理
 │   └── tests/                  验证脚本
 │
-├── backend/          B 模块：后端接口
+├── backend/          后端：接口服务
 │   └── README.md           接口清单与上传格式
 │
 └── docs/

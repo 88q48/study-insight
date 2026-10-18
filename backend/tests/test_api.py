@@ -109,7 +109,7 @@ def test_upload_errors_and_error_stats():
         "mastery_rate": 50.0,
     }
 
-    # summary 只放专注时长，错题统计必须在 error_stats（C 的反馈）
+    # summary 只放专注时长，错题统计必须在 error_stats（看板端反馈）
     assert set(data["summary"]) == {
         "total_duration_seconds",
         "avg_daily_seconds",
@@ -265,7 +265,9 @@ def test_events_batch_wrapper_body():
 
 def test_empty_analysis_returns_empty_arrays():
     data = client.get("/api/v1/analysis?days=3").json()
-    assert len(data["trend"]) == 3
+    assert data["trend"] == []
+    assert data["efficiency_trend"] == []
+    assert len(data["review_trend"]) == 3
     assert data["subject_distribution"] == []
     assert data["knowledge_points"] == []
     assert data["app_ranking"] == []

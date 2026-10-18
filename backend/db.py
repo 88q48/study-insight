@@ -2,7 +2,7 @@
 
 两张表：
 - error_record  错题：科目、知识点、复习次数、是否掌握、掌握时间
-- usage_event   A 端上传的应用使用记录，供专注趋势 / 应用排行统计
+- usage_event   客户端上传的应用使用记录，供专注趋势 / 应用排行统计
 
 数据库文件默认 ``backend/study_insight.db``（已被 .gitignore 忽略）。
 测试或多环境可用环境变量 SI_DB_PATH 指定其他路径。
