@@ -119,16 +119,24 @@
   /* ---------- 重做清单 ---------- */
   function buildRedoPlan(points, limit) {
     if (!points || !points.length) { return []; }
-    var sorted = points.slice().sort(function (a, b) {
+
+    // 只排还有题没消化的。全部掌握的不再占清单。
+    var pending = points.filter(function (p) {
+      return (p.reviewing_count || 0) > 0;
+    });
+    var sorted = pending.slice().sort(function (a, b) {
+      var d = (b.reviewing_count || 0) - (a.reviewing_count || 0);
+      if (d !== 0) { return d; }
       return (b.error_count || 0) - (a.error_count || 0);
     }).slice(0, limit || 5);
 
     return sorted.map(function (p, i) {
-      var n = p.error_count || 0;
+      var n = p.reviewing_count || 0;
+      var total = p.error_count || n;
       var suggest, reason;
       if (n >= 10) {
         suggest = Math.min(n, 10);
-        reason = "高频错误，建议整块重做";
+        reason = "还有 " + n + " 道没消化，建议整块重做";
       } else if (n >= 5) {
         suggest = n;
         reason = "反复出错，建议逐题重做";
@@ -142,6 +150,7 @@
         subject: p.subject || "",
         point: p.knowledge_point || "",
         count: n,
+        total: total,
         suggest: suggest,
         reason: reason,
         level: level
@@ -166,8 +175,8 @@
       return '<div class="' + cls + '">' +
              '<span class="idx">' + it.order + '</span>' +
              '<span class="kp"><b>' + it.subject + '</b> · ' + it.point + '</span>' +
-             '<span class="num">错 <strong>' + it.count + '</strong> 道' +
-             ' → 重做 <strong>' + it.suggest + '</strong> 道</span>' +
+             '<span class="num">待复习 <strong>' + it.count + '</strong> 道' +
+             '（累计 ' + it.total + '） → 重做 <strong>' + it.suggest + '</strong> 道</span>' +
              '<span class="badge-reason">' + it.reason + '</span>' +
              '</div>';
     }).join("");

@@ -143,7 +143,7 @@ with tab_error:
     if not plan:
         st.info("还没有知识点数据，等错题录入后这里会生成清单。")
     else:
-        st.caption("按错题数排序，今天先做第 1 条，做完再看下一条。")
+        st.caption("按待复习数排序，今天先做第 1 条，做完标记已掌握，清单就短一条。")
 
         _rows = []
         for item in plan:
@@ -151,7 +151,8 @@ with tab_error:
                 "顺序": item["order"],
                 "科目": item["subject"],
                 "知识点": item["knowledge_point"],
-                "错题数": item["error_count"],
+                "待复习": item["reviewing_count"],
+                "累计错题": item["error_count"],
                 "建议重做": item["suggest_count"],
                 "说明": item["reason"],
             })

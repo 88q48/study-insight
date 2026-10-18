@@ -92,7 +92,7 @@ def _error_block(errors: list[dict], dates: list[str]) -> dict[str, Any]:
     }
 
     by_subject: dict[str, dict[str, Any]] = {}
-    by_point: dict[tuple[str, str], int] = {}
+    by_point: dict[tuple[str, str], dict[str, int]] = {}
     for error in errors:
         subject = error["subject"]
         item = by_subject.setdefault(
@@ -101,7 +101,9 @@ def _error_block(errors: list[dict], dates: list[str]) -> dict[str, Any]:
         item["error_count"] += 1
         item["mastered_count"] += int(error["mastered"])
         key = (subject, error["knowledge_point"])
-        by_point[key] = by_point.get(key, 0) + 1
+        point_item = by_point.setdefault(key, {"error_count": 0, "mastered_count": 0})
+        point_item["error_count"] += 1
+        point_item["mastered_count"] += int(error["mastered"])
 
     subject_distribution = []
     for item in by_subject.values():
@@ -113,12 +115,20 @@ def _error_block(errors: list[dict], dates: list[str]) -> dict[str, Any]:
         subject_distribution.append(item)
     subject_distribution.sort(key=lambda item: (-item["error_count"], item["subject"]))
 
+    # 知识点同时给出累计数与待复习数：清单只看待复习，累计数用来说明历史
     knowledge_points = [
-        {"subject": subject, "knowledge_point": point, "error_count": count}
-        for (subject, point), count in by_point.items()
+        {
+            "subject": subject,
+            "knowledge_point": point,
+            "error_count": counts["error_count"],
+            "mastered_count": counts["mastered_count"],
+            "reviewing_count": counts["error_count"] - counts["mastered_count"],
+        }
+        for (subject, point), counts in by_point.items()
     ]
     knowledge_points.sort(
         key=lambda item: (
+            -item["reviewing_count"],
             -item["error_count"],
             item["subject"],
             item["knowledge_point"],

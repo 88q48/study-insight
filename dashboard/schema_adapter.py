@@ -233,18 +233,37 @@ def norm_subjects(raw, error_stats=None):
 
 
 def norm_knowledge_points(raw):
+    """知识点统计。
+
+    除了累计错题数，还要带出「已掌握」与「待复习」。
+    重做清单靠待复习数排序，否则做完题清单也不会变短。
+    """
     out = []
     for item in as_list(raw):
         d = as_dict(item)
+        error_count = int(num(pick(d, "error_count", "errorCount",
+                                   "count", "errors")))
+        mastered_count = int(num(pick(d, "mastered_count", "masteredCount",
+                                      "mastered", "resolved_count")))
+
+        reviewing_raw = pick(d, "reviewing_count", "reviewingCount",
+                             "pending_count", "pendingCount", "todo_count")
+        if reviewing_raw is None:
+            # 后端没给待复习数时，用累计减已掌握兜底
+            reviewing_count = max(error_count - mastered_count, 0)
+        else:
+            reviewing_count = int(num(reviewing_raw))
+
         out.append({
             "subject": pick(d, "subject", "subject_name", "subjectName",
                             default="未知科目"),
             "knowledge_point": pick(d, "knowledge_point", "knowledgePoint",
                                     "point", "name", "kp", default="未分类"),
-            "error_count": int(num(pick(d, "error_count", "errorCount",
-                                        "count", "errors"))),
+            "error_count": error_count,
+            "mastered_count": mastered_count,
+            "reviewing_count": reviewing_count,
         })
-    out.sort(key=lambda x: x["error_count"], reverse=True)
+    out.sort(key=lambda x: (-x["reviewing_count"], -x["error_count"]))
     return out
 
 

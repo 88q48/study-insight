@@ -251,35 +251,35 @@ def build_redo_plan(knowledge_points, error_stats=None, limit=5):
     if not knowledge_points:
         return []
 
+    # 只排还有题没消化的知识点。
+    # 已经全部掌握的不再占清单，否则做完题清单也不会变短。
+    pending = [p for p in knowledge_points if p.get("reviewing_count", 0) > 0]
     points = sorted(
-        knowledge_points,
-        key=lambda x: x.get("error_count", 0),
-        reverse=True,
+        pending,
+        key=lambda x: (-x.get("reviewing_count", 0), -x.get("error_count", 0)),
     )[:limit]
 
     plan = []
     for i, p in enumerate(points, 1):
-        n = p.get("error_count", 0)
-        # 错得越多，建议重做的比例越高，但单点不超过 10 道
-        if n >= 10:
-            suggest = min(n, 10)
-        elif n >= 5:
-            suggest = n
-        else:
-            suggest = max(n, 1)
+        n = p.get("reviewing_count", 0)
+        total = p.get("error_count", n)
 
         if n >= 10:
-            reason = "高频错误，建议整块重做"
+            suggest = min(n, 10)
+            reason = "还有 {n} 道没消化，建议整块重做".format(n=n)
         elif n >= 5:
+            suggest = n
             reason = "反复出错，建议逐题重做"
         else:
+            suggest = max(n, 1)
             reason = "偶发错误，做一遍巩固即可"
 
         plan.append({
             "order": i,
             "subject": p.get("subject", ""),
             "knowledge_point": p.get("knowledge_point", ""),
-            "error_count": n,
+            "error_count": total,
+            "reviewing_count": n,
             "suggest_count": suggest,
             "reason": reason,
         })
@@ -309,14 +309,19 @@ def redo_plan_text(plan, error_stats=None):
             )
         )
         lines.append(
-            "   错 {e} 道 → 建议重做 {n} 道（{r}）".format(
-                e=item["error_count"], n=item["suggest_count"], r=item["reason"]
+            "   待复习 {r} 道（累计错 {t} 道） → 建议重做 {n} 道（{rs}）".format(
+                r=item.get("reviewing_count", item.get("error_count", 0)),
+                t=item.get("error_count", 0),
+                n=item["suggest_count"],
+                rs=item["reason"],
             )
         )
 
     if plan:
         total = sum(x["suggest_count"] for x in plan)
         lines.append("")
-        lines.append("合计建议重做 {} 道。先做第 1 条，做完再看下一条。".format(total))
+        lines.append(
+            "合计建议重做 {} 道。做完一条在手机上标记已掌握，清单就短一条。".format(total)
+        )
 
     return NL.join(lines)
