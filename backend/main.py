@@ -38,7 +38,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 app = FastAPI(title="学情洞察 API", version="0.2.0")
 
-# 联调期放开跨域，前端和 C 看板都可以直接请求；上线前收敛成具体域名。
+# 联调期放开跨域，客户端和看板端都可以直接请求；上线前收敛成具体域名。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -182,7 +182,7 @@ def get_errors(
 
 
 # ==========================================
-# 应用使用记录：A 端批量上传
+# 应用使用记录：客户端批量上传
 # ==========================================
 class UsageEventIn(BaseModel):
     event_id: str
@@ -281,7 +281,7 @@ def sync(device_id: str):
 
 
 if __name__ == "__main__":
-    # 本地直接 `python main.py` 即可；C 的看板配置是 8010，所以默认也走 8010。
+    # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
         host="127.0.0.1",

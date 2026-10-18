@@ -24,7 +24,7 @@
 **窗口一：启动后端**
 
 ```cmd
-cd C:\Users\eric2\Desktop\study-insight\backend
+cd /d "%USERPROFILE%\Desktop\study-insight\backend"
 D:\conda\envs\usage_stats\python.exe main.py
 ```
 
@@ -39,7 +39,7 @@ Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
 **窗口二：启动看板**
 
 ```cmd
-cd C:\Users\eric2\Desktop\study-insight\dashboard\web
+cd /d "%USERPROFILE%\Desktop\study-insight\dashboard\web"
 D:\conda\envs\usage_stats\python.exe -m http.server 8080
 ```
 
@@ -226,7 +226,7 @@ D:\conda\envs\usage_stats\python.exe -c "import requests; p=requests.patch('http
 数据库里有之前测试留下的数据。删掉重来：
 
 ```cmd
-cd C:\Users\eric2\Desktop\study-insight\backend
+cd /d "%USERPROFILE%\Desktop\study-insight\backend"
 del study_insight.db
 D:\conda\envs\usage_stats\python.exe main.py
 ```
@@ -265,11 +265,11 @@ D:\conda\envs\usage_stats\python.exe main.py
 
 ```cmd
 :: 后端（窗口一）
-cd C:\Users\eric2\Desktop\study-insight\backend
+cd /d "%USERPROFILE%\Desktop\study-insight\backend"
 D:\conda\envs\usage_stats\python.exe main.py
 
 :: 看板（窗口二）
-cd C:\Users\eric2\Desktop\study-insight\dashboard\web
+cd /d "%USERPROFILE%\Desktop\study-insight\dashboard\web"
 D:\conda\envs\usage_stats\python.exe -m http.server 8080
 
 :: 浏览器

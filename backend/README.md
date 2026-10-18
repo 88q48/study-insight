@@ -1,6 +1,6 @@
 # backend — 后端接口
 
-（B 模块）
+（后端）
 
 ## 负责什么
 
@@ -133,11 +133,11 @@ device           device_id(PK) platform registered_at
 - `summary` 只放专注时长：`total_duration_seconds` / `avg_daily_seconds` / `median_daily_seconds` / `p90_daily_seconds`
 - 错题总览统一放 `error_stats`：`total_errors` / `mastered_errors` / `reviewing_errors` / `mastery_rate`
 
-C 的看板已按这个口径做兼容，前端不用再改。
+看板端已按这个口径做兼容，不用再改。
 
 ### 专注与交叉数据
 
-- `trend`：按天汇总 `usage_event`，缺失日期补 0，保证 7 天日期轴完整
+- `trend`：按天汇总 `usage_event`；窗口内有记录时缺失日期补 0，完全没有记录时返回空数组
 - `app_ranking`：按 `app_key` 汇总，`app_name` / `category` 由后端映射（Chrome / 微信 / 抖音 / 学习通 / B站）
 - `knowledge_points`：按（科目，知识点）汇总，各科知识点之和等于该科错题总数
 - `efficiency_trend`：用 `trend` 与 `review_trend` 按日期对齐生成
@@ -159,7 +159,7 @@ python main.py          # 默认 8010，与看板配置一致
 
 ### 演示数据
 
-空库首次启动会自动写入 120 道错题（数学 45 / 物理 35 / 英语 40，掌握 85，掌握率 70.8%）和最近 7 天的使用记录，C 的三张空图会立即有数据。
+空库首次启动会自动写入 120 道错题（数学 45 / 物理 35 / 英语 40，掌握 85，掌握率 70.8%）和最近 7 天的使用记录，看板端的三张空图会立即有数据。
 
 ```bash
 python seed_demo.py            # 幂等写入

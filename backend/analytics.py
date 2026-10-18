@@ -176,9 +176,15 @@ def _focus_block(events: list[dict], dates: list[str]) -> dict[str, Any]:
         if event.get("category"):
             app["category"] = event["category"]
 
-    trend = [
-        {"date": day, "total_duration_seconds": seconds_by_day[day]} for day in dates
-    ]
+    # 没有任何使用记录时按契约返回空数组，避免前端把 0 当成「有数据」。
+    trend = (
+        [
+            {"date": day, "total_duration_seconds": seconds_by_day[day]}
+            for day in dates
+        ]
+        if events
+        else []
+    )
     values = [seconds_by_day[day] for day in dates]
     total = sum(values)
     summary = {
