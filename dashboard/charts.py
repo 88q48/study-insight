@@ -236,3 +236,87 @@ def bar_group_compare(summary, group_comparison):
     )
     fig.update_layout(margin=dict(l=40, r=20, t=60, b=40))
     return fig
+
+
+# ==========================================================
+# 三、重做清单
+# ==========================================================
+
+def build_redo_plan(knowledge_points, error_stats=None, limit=5):
+    """把薄弱知识点变成一份能照着做的重做清单。
+
+    看板只告诉人「错在哪」还不够，得说清「今天先做哪几道」。
+    这里按错题数排序，给出每个知识点建议重做的数量。
+    """
+    if not knowledge_points:
+        return []
+
+    points = sorted(
+        knowledge_points,
+        key=lambda x: x.get("error_count", 0),
+        reverse=True,
+    )[:limit]
+
+    plan = []
+    for i, p in enumerate(points, 1):
+        n = p.get("error_count", 0)
+        # 错得越多，建议重做的比例越高，但单点不超过 10 道
+        if n >= 10:
+            suggest = min(n, 10)
+        elif n >= 5:
+            suggest = n
+        else:
+            suggest = max(n, 1)
+
+        if n >= 10:
+            reason = "高频错误，建议整块重做"
+        elif n >= 5:
+            reason = "反复出错，建议逐题重做"
+        else:
+            reason = "偶发错误，做一遍巩固即可"
+
+        plan.append({
+            "order": i,
+            "subject": p.get("subject", ""),
+            "knowledge_point": p.get("knowledge_point", ""),
+            "error_count": n,
+            "suggest_count": suggest,
+            "reason": reason,
+        })
+
+    return plan
+
+
+def redo_plan_text(plan, error_stats=None):
+    """把清单转成纯文本，方便复制到微信或备忘录。"""
+    NL = chr(10)
+    lines = ["今日重做清单", "=" * 20]
+
+    if error_stats:
+        lines.append(
+            "累计错题 {t} 道，已掌握 {m} 道，待复习 {r} 道".format(
+                t=error_stats.get("total_errors", 0),
+                m=error_stats.get("mastered_errors", 0),
+                r=error_stats.get("reviewing_errors", 0),
+            )
+        )
+        lines.append("")
+
+    for item in plan:
+        lines.append(
+            "{i}. {s} · {k}".format(
+                i=item["order"], s=item["subject"], k=item["knowledge_point"]
+            )
+        )
+        lines.append(
+            "   错 {e} 道 → 建议重做 {n} 道（{r}）".format(
+                e=item["error_count"], n=item["suggest_count"], r=item["reason"]
+            )
+        )
+
+    if plan:
+        total = sum(x["suggest_count"] for x in plan)
+        lines.append("")
+        lines.append("合计建议重做 {} 道。先做第 1 条，做完再看下一条。".format(total))
+
+    return NL.join(lines)

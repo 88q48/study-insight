@@ -16,6 +16,7 @@ from charts import (
     radar_subject, bar_subject_mastery, bar_knowledge_points,
     funnel_mastery, line_review_trend, dual_axis_efficiency,
     line_focus_trend, pie_app_category, bar_group_compare,
+    build_redo_plan, redo_plan_text,
 )
 
 st.set_page_config(page_title="错题管理与学情诊断", layout="wide")
@@ -133,6 +134,38 @@ with tab_error:
         )
     else:
         st.write("- 后端还没给出知识点明细，薄弱项待补充。")
+
+    # ---------- 今日重做清单 ----------
+    st.divider()
+    st.subheader("📋 今日重做清单")
+
+    plan = build_redo_plan(points, err, limit=5)
+    if not plan:
+        st.info("还没有知识点数据，等错题录入后这里会生成清单。")
+    else:
+        st.caption("按错题数排序，今天先做第 1 条，做完再看下一条。")
+
+        _rows = []
+        for item in plan:
+            _rows.append({
+                "顺序": item["order"],
+                "科目": item["subject"],
+                "知识点": item["knowledge_point"],
+                "错题数": item["error_count"],
+                "建议重做": item["suggest_count"],
+                "说明": item["reason"],
+            })
+        st.dataframe(_rows, use_container_width=True, hide_index=True)
+
+        _txt = redo_plan_text(plan, err)
+        with st.expander("复制成文字（发到微信或备忘录）"):
+            st.code(_txt, language=None)
+            st.download_button(
+                "下载清单",
+                data=_txt.encode("utf-8"),
+                file_name="重做清单.txt",
+                mime="text/plain",
+            )
 
 
 # ==========================================================
