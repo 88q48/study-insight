@@ -206,4 +206,6 @@ Windows 客户端 ─┐
 
 报名表要用的项目名称和简介，见 [`docs/project-intro.md`](docs/project-intro.md)。
 
+演示怎么跑，见 [`docs/demo.md`](docs/demo.md)。
+
 主开发分支是 `main`。早期的 `master` 与 `windows` 分支内容已并入 `main`，均已删除。
