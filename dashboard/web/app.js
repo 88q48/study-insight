@@ -115,6 +115,68 @@
     el.innerHTML = tips.map(function (t) { return "<li>" + t + "</li>"; }).join("");
   }
 
+  /* ---------- 重做清单 ---------- */
+  function buildRedoPlan(points, limit) {
+    if (!points || !points.length) { return []; }
+    var sorted = points.slice().sort(function (a, b) {
+      return (b.error_count || 0) - (a.error_count || 0);
+    }).slice(0, limit || 5);
+
+    return sorted.map(function (p, i) {
+      var n = p.error_count || 0;
+      var suggest, reason;
+      if (n >= 10) {
+        suggest = Math.min(n, 10);
+        reason = "高频错误，建议整块重做";
+      } else if (n >= 5) {
+        suggest = n;
+        reason = "反复出错，建议逐题重做";
+      } else {
+        suggest = Math.max(n, 1);
+        reason = "偶发错误，做一遍巩固即可";
+      }
+      var level = n >= 10 ? "high" : (n >= 5 ? "mid" : "low");
+      return {
+        order: i + 1,
+        subject: p.subject || "",
+        point: p.knowledge_point || "",
+        count: n,
+        suggest: suggest,
+        reason: reason,
+        level: level
+      };
+    });
+  }
+
+  function renderRedo(plan) {
+    var box = document.getElementById("redo-list");
+    var totalEl = document.getElementById("redo-total");
+    if (!box) { return; }
+
+    if (!plan.length) {
+      box.innerHTML = '<p class="note">还没有知识点数据，等错题录入后这里会生成清单。</p>';
+      if (totalEl) { totalEl.textContent = ""; }
+      return;
+    }
+
+    box.innerHTML = plan.map(function (it) {
+      var cls = "redo-item" + (it.level === "mid" ? " level-mid"
+                : (it.level === "low" ? " level-low" : ""));
+      return '<div class="' + cls + '">' +
+             '<span class="idx">' + it.order + '</span>' +
+             '<span class="kp"><b>' + it.subject + '</b> · ' + it.point + '</span>' +
+             '<span class="num">错 <strong>' + it.count + '</strong> 道' +
+             ' → 重做 <strong>' + it.suggest + '</strong> 道</span>' +
+             '<span class="badge-reason">' + it.reason + '</span>' +
+             '</div>';
+    }).join("");
+
+    var total = plan.reduce(function (s, x) { return s + x.suggest; }, 0);
+    if (totalEl) {
+      totalEl.textContent = "合计建议重做 " + total + " 道。做完记得在手机上标记已掌握。";
+    }
+  }
+
   /* ---------- Tab 切换 ---------- */
   function switchTab(name) {
     document.querySelectorAll(".tab").forEach(function (btn) {
@@ -166,6 +228,8 @@
       "最薄弱的知识点是 <b>" + top.subject + " · " + top.knowledge_point + "</b>，" +
         "错了 " + top.error_count + " 次。"
     ]);
+
+    renderRedo(buildRedoPlan(d.knowledge_points, 5));
   }
 
   /* ---------- 渲染：专注与效率 ---------- */

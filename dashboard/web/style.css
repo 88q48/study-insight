@@ -195,3 +195,66 @@ body {
 }
 
 .chart.tall { height: 400px; }
+
+/* ---------- 今日重做清单 ---------- */
+.redo-list { display: flex; flex-direction: column; gap: 8px; }
+
+.redo-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border-left: 4px solid var(--accent);
+}
+
+.redo-item .idx {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.redo-item .kp { flex: 1 1 auto; font-size: 14px; color: var(--ink, #1f2937); }
+.redo-item .kp b { color: #111827; }
+
+.redo-item .num {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.redo-item .num strong {
+  color: #f56c6c;
+  font-size: 16px;
+  margin: 0 2px;
+}
+
+.redo-item .badge-reason {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff1f0;
+  color: #d93026;
+}
+
+.redo-item.level-mid { border-left-color: #f5a623; }
+.redo-item.level-mid .idx { background: #f5a623; }
+.redo-item.level-mid .badge-reason { background: #fff8e6; color: #b37400; }
+
+.redo-item.level-low { border-left-color: #67c23a; }
+.redo-item.level-low .idx { background: #67c23a; }
+.redo-item.level-low .badge-reason { background: #f0f9eb; color: #3f8f16; }
+
+@media (max-width: 700px) {
+  .redo-item { flex-wrap: wrap; }
+  .redo-item .kp { flex-basis: 100%; }
+}
