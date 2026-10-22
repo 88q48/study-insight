@@ -1,159 +1,152 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet,
-  Text,
   View,
+  Text,
   TextInput,
-  Button,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
   ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-  ActivityIndicator
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-// 引入图片选择器和 OCR 识别库
-import { launchCamera } from 'react-native-image-picker';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
+
+// 模拟器访问电脑本机，端口 8010
+const BASE_URL = 'http://10.0.2.2:8010';
 
 const App = () => {
+  const [subject, setSubject] = useState('');
+  const [knowledgePoint, setKnowledgePoint] = useState('');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
-  const [analysis, setAnalysis] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
 
-  // OCR 拍照识别函数
-  const handleOCR = async () => {
+  const handleSubmit = async () => {
+    if (!subject || !question) {
+      Alert.alert('提示', '科目和题目内容不能为空哦！');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // 🔥 严格对齐后端 /api/v1/errors 的字段要求
+    const payload = {
+      error_id: `err_${Date.now()}`, // 生成一个唯一 ID
+      device_id: 'android_emulator_01', // 设备标识
+      subject: subject,
+      knowledge_point: knowledgePoint || '未分类', 
+      content: answer || '暂无答案', // 将答案映射为 content
+      question_content: question, // 题目映射为 question_content
+      created_at: new Date().toISOString(), // 当前时间
+      mastered: false,
+      review_count: 0
+    };
+
     try {
-      // 调起相机
-      const result = await launchCamera({ mediaType: 'photo', saveToPhotos: true });
-      
-      if (result.assets && result.assets[0]?.uri) {
-        setIsScanning(true);
-        const imageUri = result.assets[0].uri;
-        
-        // 调用 ML Kit 识别图片中的文字
-        const ocrResult = await TextRecognition.recognize(imageUri);
-        
-        if (ocrResult.text) {
-          // 把识别到的文字直接塞进题目输入框
-          setQuestion(ocrResult.text);
-          Alert.alert('识别成功', '文字已自动填入题目框！');
-        } else {
-          Alert.alert('提示', '图片中没识别到文字');
-        }
+      // 🚨 路径改成了 /api/v1/errors
+      const response = await fetch(`${BASE_URL}/api/v1/errors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      // 处理可能为空响应的 200 OK
+      const text = await response.text();
+      const result = text ? JSON.parse(text) : {};
+
+      if (response.ok) {
+        Alert.alert('成功', '错题录入成功！');
+        setSubject('');
+        setKnowledgePoint('');
+        setQuestion('');
+        setAnswer('');
+      } else {
+        const errorMsg = result.detail ? JSON.stringify(result.detail) : '录入失败，请检查字段';
+        Alert.alert('失败', errorMsg);
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('错误', '拍照或识别失败，请检查相机权限。');
+      Alert.alert('网络错误', '无法连接服务器。');
     } finally {
-      setIsScanning(false);
+      setIsSubmitting(false);
     }
-  };
-
-  // 提交错题的函数 (不变)
-  const handleSubmit = () => {
-    if (!question || !answer) {
-      Alert.alert('提示', '题目和答案不能为空哦！');
-      return;
-    }
-    setIsSubmitting(true);
-    const apiUrl = 'http://10.0.2.2:3000/api/mistakes'; 
-
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, answer, analysis }),
-    })
-      .then((response) => response.json())
-      .then(() => {
-        Alert.alert('成功', '错题已成功录入！');
-        setQuestion(''); setAnswer(''); setAnalysis('');
-      })
-      .catch(() => {
-        Alert.alert('网络错误', '提交失败，请检查后端是否开启。');
-      })
-      .finally(() => setIsSubmitting(false));
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>📝 错题录入</Text>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.headerTitle}>📚 错题录入</Text>
 
-        {/* 新增的 OCR 按钮 */}
-        <TouchableOpacity 
-          style={styles.ocrButton} 
-          onPress={handleOCR}
-          disabled={isScanning}
-        >
-          <Text style={styles.ocrButtonText}>
-            {isScanning ? '正在识别中...' : '📷 拍照识别题目'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>题目内容 *</Text>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>科目 <Text style={styles.required}>*</Text></Text>
           <TextInput
             style={styles.input}
-            placeholder="请输入题目，或点击上方拍照识别..."
-            value={question}
-            onChangeText={setQuestion}
-            multiline
+            placeholder="例如：数学"
+            value={subject}
+            onChangeText={setSubject}
           />
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>正确答案 *</Text>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>知识点</Text>
           <TextInput
             style={styles.input}
-            placeholder="请输入正确答案..."
+            placeholder="例如：导数"
+            value={knowledgePoint}
+            onChangeText={setKnowledgePoint}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>题目内容 <Text style={styles.required}>*</Text></Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="输入题目..."
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            value={question}
+            onChangeText={setQuestion}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>正确答案 / 解析</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="输入正确答案..."
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
             value={answer}
             onChangeText={setAnswer}
           />
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>解析（选填）</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="请输入题目解析..."
-            value={analysis}
-            onChangeText={setAnalysis}
-            multiline
-          />
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <Button
-            title={isSubmitting ? '提交中...' : '提交错题'}
-            onPress={handleSubmit}
-            disabled={isSubmitting || isScanning}
-            color="#4F46E5"
-          />
-        </View>
+        <TouchableOpacity
+          style={[styles.submitBtn, isSubmitting && styles.btnDisabled]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitBtnText}>{isSubmitting ? '提交中...' : '保存错题'}</Text>
+        </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  scrollContainer: { padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1F2937' },
-  ocrButton: {
-    backgroundColor: '#10B981',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  ocrButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  inputGroup: { marginBottom: 15 },
-  label: { fontSize: 16, marginBottom: 5, color: '#374151', fontWeight: '500' },
-  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 16 },
-  textArea: { height: 100, textAlignVertical: 'top' },
-  buttonContainer: { marginTop: 20, borderRadius: 8, overflow: 'hidden' },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  scrollContent: { padding: 20, paddingBottom: 50 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 20, textAlign: 'center' },
+  formGroup: { marginBottom: 15 },
+  label: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 8 },
+  required: { color: 'red' },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16 },
+  textArea: { height: 100, paddingTop: 12 },
+  submitBtn: { backgroundColor: '#007AFF', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  btnDisabled: { backgroundColor: '#99c2ff' },
+  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
 
 export default App;
