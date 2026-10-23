@@ -2,18 +2,10 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-const BASE_URL = 'http://10.0.2.2:8010';
-
-interface MistakeItem {
-  error_id: string;
-  subject: string;
-  knowledge_point: string;
-  question_content: string;
-  content: string;
-}
+import { ErrorItem, fetchErrors, questionOf } from '../api';
 
 export default function MistakesScreen() {
-  const [data, setData] = useState<MistakeItem[]>([]);
+  const [data, setData] = useState<ErrorItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 使用 useFocusEffect，每次切到这个页面都会重新拉取数据
@@ -21,12 +13,10 @@ export default function MistakesScreen() {
     useCallback(() => {
       let isActive = true;
       setLoading(true);
-      fetch(`${BASE_URL}/api/v1/errors`)
-        .then(res => res.json())
-        .then((json: any) => {
+      fetchErrors()
+        .then((result) => {
           if (isActive) {
-            // ⚠️ 这里的 json.items 是关键，后端数据是套娃的
-            setData(json.items || []); 
+            setData(result.items);
             setLoading(false);
           }
         })
@@ -61,9 +51,12 @@ export default function MistakesScreen() {
               <Text style={styles.subject}>
                 {item.subject || '未分类'} - {item.knowledge_point || '未知知识点'}
               </Text>
+              <Text style={styles.status}>
+                {item.mastered ? '已掌握' : '待复习'}
+              </Text>
             </View>
-            <Text style={styles.question}>题目：{item.question_content}</Text>
-            <Text style={styles.answer}>答案：{item.content}</Text>
+            <Text style={styles.question}>题目：{questionOf(item) || '（未填写题目）'}</Text>
+            <Text style={styles.answer}>答案：{item.answer || '（未填写答案）'}</Text>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>暂无错题，快去录入吧！</Text>}
@@ -84,6 +77,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   subject: { fontSize: 14, color: '#007AFF', fontWeight: 'bold' },
+  status: { fontSize: 12, color: '#999' },
   question: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 6 },
   answer: { fontSize: 14, color: '#666' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 },

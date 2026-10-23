@@ -119,7 +119,7 @@ device           device_id(PK) platform registered_at
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/v1/errors` | 上传错题并落库；兼容 `question_content` 旧字段；不传 `error_id` 时自动生成 |
+| POST | `/api/v1/errors` | 上传错题并落库；`content` 为题目、`answer` 为答案，兼容 `question_content` 旧字段；不传 `error_id` 时自动生成 |
 | PATCH | `/api/v1/errors/{error_id}` | 更新 `mastered` / `review_count` |
 | GET | `/api/v1/errors?device_id=&limit=&subject=` | 查看最近错题 |
 | POST | `/api/v1/events/batch` | 批量上传使用记录，支持数组或 `{"events": [...]}` |

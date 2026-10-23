@@ -73,6 +73,8 @@ def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
         "subject": row["subject"],
         "knowledge_point": row["knowledge_point"],
         "content": row["content"],
+        "question_content": row["content"],  # 兼容旧客户端
+        "answer": row.get("answer", ""),
         "created_at": row["created_at"],
         "mastered": bool(row["mastered"]),
         "review_count": row["review_count"],
@@ -101,6 +103,7 @@ class ErrorIn(BaseModel):
     subject: str                          # 科目，如 "数学"
     knowledge_point: str | None = None    # 知识点，空则归入 "未分类"
     content: str | None = None            # 题目内容（正式字段）
+    answer: str | None = None             # 答案 / 解析（可选）
     question_content: str | None = None   # 旧字段，兼容客户端已发出的请求
     created_at: datetime | None = None    # 不传时用服务器当前时间
     mastered: bool = False
@@ -120,6 +123,7 @@ def upload_error(payload: ErrorIn, response: Response):
 
     knowledge_point = (payload.knowledge_point or "").strip() or "未分类"
     content = (payload.content or payload.question_content or "").strip()
+    answer = (payload.answer or "").strip()
     error_id = (payload.error_id or "").strip() or _new_error_id()
     created_at = _to_utc_iso(payload.created_at)
     mastered = bool(payload.mastered)
@@ -131,6 +135,7 @@ def upload_error(payload: ErrorIn, response: Response):
         "subject": subject,
         "knowledge_point": knowledge_point,
         "content": content,
+        "answer": answer,
         "created_at": created_at,
         "mastered": mastered,
         "review_count": payload.review_count,

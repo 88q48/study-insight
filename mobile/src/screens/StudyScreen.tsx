@@ -12,39 +12,39 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-const BASE_URL = 'http://10.0.2.2:8010';
-
-interface MistakeItem {
-  error_id: string;
-  subject: string;
-  knowledge_point: string;
-  question_content: string;
-  content: string;
-}
+import {
+  ErrorItem,
+  answerOf,
+  fetchErrors,
+  markMastered,
+  questionOf,
+} from '../api';
 
 export default function StudyScreen() {
-  const [questions, setQuestions] = useState<MistakeItem[]>([]);
+  const [questions, setQuestions] = useState<ErrorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [isMarking, setIsMarking] = useState(false);
 
-  // 每次进入学习页面，重新拉取错题
+  // 每次进入学习页面，重新拉取待复习错题
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
       setLoading(true);
-      fetch(`${BASE_URL}/api/v1/errors`)
-        .then(res => res.json())
-        .then(json => {
+      fetchErrors()
+        .then((result) => {
           if (isActive) {
-            setQuestions(json.items || []);
+            setQuestions(result.items.filter((item) => !item.mastered));
             setCurrentIndex(0);
+            setUserAnswer('');
+            setShowResult(false);
             setLoading(false);
           }
         })
-        .catch(err => {
+        .catch((err) => {
           if (isActive) {
             console.error(err);
             setLoading(false);
@@ -76,10 +76,13 @@ export default function StudyScreen() {
   // 获取当前题目
   const currentQ = questions[currentIndex];
 
+  const correctAnswer = answerOf(currentQ);
+  const hasAnswer = correctAnswer.trim().length > 0;
+
   // 检查答案
   const handleCheck = () => {
-    // 去除空格并转小写进行比对
-    const isRight = userAnswer.trim().toLowerCase() === (currentQ.content || '').trim().toLowerCase();
+    const normalize = (value: string) => value.trim().toLowerCase();
+    const isRight = hasAnswer && normalize(userAnswer) === normalize(correctAnswer);
     setIsCorrect(isRight);
     setShowResult(true);
   };
@@ -92,7 +95,24 @@ export default function StudyScreen() {
       setShowResult(false);
     } else {
       Alert.alert('恭喜', '你已完成本轮所有错题复习！');
-      // 可以在这里调接口更新掌握状态
+    }
+  };
+
+  // 标记已掌握：后端会把它从待复习数里减掉
+  const handleMastered = async () => {
+    if (!currentQ || isMarking) {
+      return;
+    }
+    setIsMarking(true);
+    try {
+      await markMastered(currentQ.error_id, (currentQ.review_count || 0) + 1);
+      Alert.alert('已标记掌握', '这道题已从待复习里移出。');
+      handleNext();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '请稍后重试';
+      Alert.alert('标记失败', message);
+    } finally {
+      setIsMarking(false);
     }
   };
 
@@ -111,7 +131,7 @@ export default function StudyScreen() {
       {/* 题目区域 */}
       <View style={styles.questionBox}>
         <Text style={styles.questionLabel}>题目：</Text>
-        <Text style={styles.questionText}>{currentQ.question_content}</Text>
+        <Text style={styles.questionText}>{questionOf(currentQ) || '（未填写题目）'}</Text>
       </View>
 
       {/* 作答区域 */}
@@ -133,14 +153,21 @@ export default function StudyScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.resultBox}>
-            <Text style={[styles.resultText, { color: isCorrect ? '#34C759' : '#FF3B30' }]}>
-              {isCorrect ? '✅ 回答正确！' : '❌ 回答错误'}
+            <Text style={[styles.resultText, { color: hasAnswer ? (isCorrect ? '#34C759' : '#FF3B30') : '#666' }]}>
+              {hasAnswer ? (isCorrect ? '✅ 回答正确！' : '❌ 回答错误') : '📝 暂无标准答案，请对照题目自评'}
             </Text>
-            {!isCorrect && (
+            {!isCorrect && hasAnswer && (
               <Text style={styles.correctAnswerText}>
-                正确答案：{currentQ.content}
+                正确答案：{correctAnswer}
               </Text>
             )}
+            <TouchableOpacity
+              style={[styles.markBtn, isMarking && { opacity: 0.5 }]}
+              onPress={handleMastered}
+              disabled={isMarking}
+            >
+              <Text style={styles.btnText}>{isMarking ? '标记中...' : '✅ 标记已掌握'}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.primaryBtn} onPress={handleNext}>
               <Text style={styles.btnText}>下一题</Text>
             </TouchableOpacity>
@@ -171,6 +198,7 @@ const styles = StyleSheet.create({
   inputWrong: { borderColor: '#FF3B30', backgroundColor: '#fff0f0' },
   
   primaryBtn: { backgroundColor: '#007AFF', padding: 15, borderRadius: 8, alignItems: 'center' },
+  markBtn: { backgroundColor: '#34C759', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
   resultBox: { alignItems: 'center' },

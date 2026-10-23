@@ -1,97 +1,85 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 手机端（React Native）
 
-# Getting Started
+错题录入与复习的 Android/iOS 客户端。数据直连 `backend` 的 8010 端口，设备标识统一为 `android_emulator_01`。
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 环境要求
 
-## Step 1: Start Metro
+- Node.js >= 22
+- JDK 17
+- Android SDK：Platform 37、Build Tools 37、NDK 27.1、CMake 3.22
+- Android 模拟器或真机
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+本机开发时用到的路径：
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+```powershell
+D:\tools\node_extract\node-v24.22.1-win-x64
+D:\tools\jdk_extract\jdk-17.0.20.1+1
+D:\Android\Sdk
+```
 
-```sh
-# Using npm
+## 后端地址
+
+统一在 `src/config.ts` 配置：
+
+- Android 模拟器：`http://10.0.2.2:8010`（指向宿主机）
+- iOS 模拟器：`http://127.0.0.1:8010`
+- 真机：改成电脑的局域网 IP，例如 `http://192.168.1.8:8010`
+
+同时把 `DEVICE_ID` 改成该设备的唯一标识。上传和查询都会自动带上它。
+
+## 运行
+
+```bash
+cd mobile
+npm ci --registry=https://registry.npmmirror.com
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+另开一个窗口：
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+```bash
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+也可以直接构建 APK：
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+cd android
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Then, and every time you update your native dependencies, run:
+## 页面
 
-```sh
-bundle exec pod install
+- **录入**：拍照/相册选图，ML Kit 中文 OCR 识别题目；可手动补充科目、知识点、答案；提交到 `POST /api/v1/errors`
+- **学习**：拉取本设备待复习错题，逐题作答；支持「标记已掌握」，会调用 `PATCH /api/v1/errors/{error_id}`
+- **错题**：本设备错题列表，显示科目、知识点、题目、答案和掌握状态
+- **我的**：从 `/api/v1/devices/{device_id}/analysis` 读取总错题、已掌握、待复习和掌握率
+
+## 接口字段
+
+上传时：
+
+```json
+{
+  "error_id": "err_...",
+  "device_id": "android_emulator_01",
+  "subject": "数学",
+  "knowledge_point": "导数与函数",
+  "content": "题目内容",
+  "answer": "答案 / 解析",
+  "created_at": "2026-10-23T12:00:00Z",
+  "mastered": false,
+  "review_count": 0
+}
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+- `content` 是题目，`answer` 是答案
+- `question_content` 仍保留为旧字段兼容
+- 查询统一带 `device_id`，避免读到其他设备的数据
 
-```sh
-# Using npm
-npm run ios
+## 常见问题
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- **页面提示无法连接服务器**：确认后端在电脑上监听 8010，Android 模拟器用 `10.0.2.2`，真机用局域网 IP。
+- **OCR 没有反应**：首次使用需要相机/相册权限；ML Kit 需要重新构建原生包，不能只在 Metro 里热更新。
+- **依赖安装慢**：使用 `--registry=https://registry.npmmirror.com`。

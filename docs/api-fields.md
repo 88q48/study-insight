@@ -101,13 +101,15 @@
 | `reviewing_count` | number | `15` |
 | `mastery_rate` | number | `66.7` |
 
-### `knowledge_points`（数组，按错题数降序）
+### `knowledge_points`（数组，按待复习数降序）
 
 | 字段 | 类型 | 示例 |
 |---|---|---|
 | `subject` | string | `"数学"` |
 | `knowledge_point` | string | `"导数与函数"` |
 | `error_count` | number | `15` |
+| `mastered_count` | number | `6` |
+| `reviewing_count` | number | `9` |
 
 ### `review_trend`（数组，每天一项）
 

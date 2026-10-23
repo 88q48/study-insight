@@ -93,12 +93,19 @@ def test_upload_errors_and_error_stats():
             "subject": "物理",
             "knowledge_point": "力学",
             "content": "受力分析",
+            "answer": "F = ma",
             "created_at": _iso(now),
             "mastered": True,
             "review_count": 2,
         },
     )
     assert formal.status_code == 201
+
+    listed = client.get(f"/api/v1/errors?device_id={DEVICE}&limit=10").json()
+    saved = next(item for item in listed["items"] if item["error_id"] == "err_0002")
+    assert saved["content"] == "受力分析"
+    assert saved["question_content"] == "受力分析"
+    assert saved["answer"] == "F = ma"
 
     data = client.get("/api/v1/analysis").json()
     stats = data["error_stats"]

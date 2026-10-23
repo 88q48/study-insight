@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS error_record (
     subject         TEXT NOT NULL,
     knowledge_point TEXT NOT NULL,
     content         TEXT NOT NULL DEFAULT '',
+    answer          TEXT NOT NULL DEFAULT '',
     created_at      TEXT NOT NULL,
     mastered        INTEGER NOT NULL DEFAULT 0,
     review_count    INTEGER NOT NULL DEFAULT 0,
@@ -85,6 +86,12 @@ def connection() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connection() as conn:
         conn.executescript(SCHEMA)
+        # 旧库补列：answer 是本轮手机端联调新增的字段。
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(error_record)")}
+        if "answer" not in columns:
+            conn.execute(
+                "ALTER TABLE error_record ADD COLUMN answer TEXT NOT NULL DEFAULT ''"
+            )
 
 
 def is_empty() -> bool:
@@ -114,6 +121,7 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
             record["subject"],
             record["knowledge_point"],
             record.get("content", ""),
+            record.get("answer", ""),
             record["created_at"],
             int(bool(record.get("mastered"))),
             int(record.get("review_count", 0)),
@@ -127,9 +135,9 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
         conn.executemany(
             """
             INSERT INTO error_record (
-                error_id, device_id, subject, knowledge_point, content,
+                error_id, device_id, subject, knowledge_point, content, answer,
                 created_at, mastered, review_count, mastered_at, received_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(error_id) DO NOTHING
             """,
             rows,
@@ -155,6 +163,7 @@ _UPDATE_COLUMNS = {
     "subject",
     "knowledge_point",
     "content",
+    "answer",
     "mastered",
     "review_count",
     "mastered_at",

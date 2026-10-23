@@ -12,8 +12,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
+import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
 
-const BASE_URL = 'http://10.0.2.2:8010';
+import { createError } from '../api';
 
 export default function EntryScreen() {
   const [subject, setSubject] = useState('');
@@ -57,8 +58,7 @@ export default function EntryScreen() {
 
       const imageUri = response.assets?.[0]?.uri;
       if (imageUri) {
-        // 这里调用模拟的上传识别逻辑
-        simulateUploadOCR(imageUri);
+        await recognizeImage(imageUri);
       }
     } catch (err) {
       console.error(err);
@@ -66,18 +66,25 @@ export default function EntryScreen() {
     }
   };
 
-  const simulateUploadOCR = (imageUri: string) => {
+  const recognizeImage = async (imageUri: string) => {
     setIsOcrLoading(true);
-    // ⚠️ 注意：因为 B 同学的后端还没写 OCR 接口，这里我们先用 setTimeout 模拟网络请求。
-    // 等后端写好后，请把这段替换为真实的 fetch 上传 FormData 请求。
-    setTimeout(() => {
+    try {
+      const result = await TextRecognition.recognize(
+        imageUri,
+        TextRecognitionScript.CHINESE,
+      );
+      const text = (result.text || '').trim();
+      if (!text) {
+        throw new Error('没有识别到文字，请换个角度再拍一张。');
+      }
+      setQuestion(text);
+      Alert.alert('识别完成', '题目已填入，请补充科目和知识点。');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '请手动输入题目';
+      Alert.alert('识别失败', message);
+    } finally {
       setIsOcrLoading(false);
-      // 模拟识别成功的填充
-      setQuestion('已知函数 f(x) = x^2 + 2x，求它的最小值？');
-      setSubject('数学');
-      setKnowledgePoint('二次函数');
-      Alert.alert('识别成功', '题目内容已自动填充！');
-    }, 2000);
+    }
   };
 
 
@@ -91,10 +98,10 @@ export default function EntryScreen() {
 
     const payload = {
       error_id: `err_${Date.now()}`,
-      device_id: 'android_emulator_01',
       subject,
       knowledge_point: knowledgePoint || '未分类',
-      content: answer || '暂无答案',
+      content: question,
+      answer: answer.trim(),
       question_content: question,
       created_at: new Date().toISOString(),
       mastered: false,
@@ -102,25 +109,16 @@ export default function EntryScreen() {
     };
 
     try {
-      const response = await fetch(`${BASE_URL}/api/v1/errors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        Alert.alert('成功', '错题录入成功！');
-        // 清空表单
-        setSubject('');
-        setKnowledgePoint('');
-        setQuestion('');
-        setAnswer('');
-      } else {
-        Alert.alert('失败', '后端拒绝了请求');
-      }
+      const result = await createError(payload);
+      Alert.alert('成功', result.message || '错题录入成功！');
+      // 清空表单
+      setSubject('');
+      setKnowledgePoint('');
+      setQuestion('');
+      setAnswer('');
     } catch (error) {
-      console.error(error);
-      Alert.alert('网络错误', '无法连接服务器');
+      const message = error instanceof Error ? error.message : '无法连接服务器';
+      Alert.alert('失败', message);
     } finally {
       setIsSubmitting(false);
     }
