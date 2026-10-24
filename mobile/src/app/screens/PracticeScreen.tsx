@@ -42,16 +42,16 @@ export default function PracticeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: '#F3F6FC' },
   switcher: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginTop: 12,
     padding: 4,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#e5e9f2',
+    borderColor: '#E8EEF8',
   },
   segment: {
     flex: 1,
@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
   },
-  segmentActive: { backgroundColor: '#007AFF' },
-  segmentText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  segmentTextActive: { color: '#fff' },
+  segmentActive: { backgroundColor: '#3B6EF6' },
+  segmentText: { fontSize: 14, fontWeight: '600', color: '#7B8494' },
+  segmentTextActive: { color: '#FFFFFF' },
   body: { flex: 1 },
 });

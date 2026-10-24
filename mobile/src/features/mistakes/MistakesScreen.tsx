@@ -10,6 +10,7 @@ import {
   optionOf,
   questionOf,
 } from '../../shared/domain/error';
+import MathText from '../../shared/ui/MathText';
 
 export default function MistakesScreen() {
   const [data, setData] = useState<ErrorItem[]>([]);
@@ -93,17 +94,21 @@ export default function MistakesScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.question}>题目：{questionOf(item) || '（未填写题目）'}</Text>
+            <MathText style={styles.question}>
+              题目：{questionOf(item) || '（未填写题目）'}
+            </MathText>
             {isChoiceQuestion(item) && (
               <View style={styles.optionsBox}>
                 {CHOICE_KEYS.map(key => (
-                  <Text key={key} style={styles.optionText}>
+                  <MathText key={key} style={styles.optionText}>
                     {key}. {optionOf(item, key)}
-                  </Text>
+                  </MathText>
                 ))}
               </View>
             )}
-            <Text style={styles.answer}>答案：{item.answer || '（未填写答案）'}</Text>
+            <MathText style={styles.answer}>
+              答案：{item.answer || '（未填写答案）'}
+            </MathText>
             <View style={styles.cardFooter}>
               <Text style={styles.stats}>
                 做题 {item.attempt_count ?? 0} 次 · 正确率 {item.accuracy ?? 0}%
@@ -121,39 +126,54 @@ export default function MistakesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa', padding: 10 },
+  container: { flex: 1, backgroundColor: '#F3F6FC', padding: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   card: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
     elevation: 2,
+    shadowColor: '#1F2937',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 4},
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subject: { fontSize: 14, color: '#007AFF', fontWeight: 'bold' },
+  subject: { fontSize: 14, color: '#3B6EF6', fontWeight: '700' },
   typeBadge: {
     fontSize: 11,
-    color: '#8A5A00',
-    backgroundColor: '#FFF4E0',
+    color: '#3B5BDB',
+    backgroundColor: '#EAF1FF',
     borderRadius: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  status: { fontSize: 12, color: '#999' },
-  question: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 6 },
-  optionsBox: { marginBottom: 6, gap: 4 },
-  optionText: { fontSize: 14, color: '#444' },
-  answer: { fontSize: 14, color: '#666' },
+  status: { fontSize: 12, color: '#8A94A6' },
+  question: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 8, lineHeight: 24 },
+  optionsBox: {
+    marginBottom: 8,
+    gap: 4,
+    backgroundColor: '#F8FAFF',
+    borderRadius: 10,
+    padding: 10,
+  },
+  optionText: { fontSize: 14, color: '#3F4A5A', lineHeight: 22 },
+  answer: { fontSize: 14, color: '#6B7280' },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F8',
   },
-  stats: { fontSize: 12.5, color: '#888' },
+  stats: { fontSize: 12.5, color: '#8A94A6' },
   deleteText: { fontSize: 13, color: '#FF3B30', fontWeight: '600' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 },
+  emptyText: { textAlign: 'center', marginTop: 50, color: '#8A94A6', fontSize: 16 },
 });

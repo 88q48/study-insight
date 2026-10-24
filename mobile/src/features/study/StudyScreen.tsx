@@ -18,6 +18,7 @@ import {
   recordAttempt,
 } from '../../shared/api/client';
 import type { ErrorItem, SubjectOption } from '../../shared/api/types';
+import MathText from '../../shared/ui/MathText';
 import {
   CHOICE_KEYS,
   answerOf,
@@ -249,13 +250,15 @@ export default function StudyScreen() {
       {/* 题目区域 */}
       <View style={styles.questionBox}>
         <Text style={styles.questionLabel}>题目：</Text>
-        <Text style={styles.questionText}>{questionOf(currentQ) || '（未填写题目）'}</Text>
+        <MathText style={styles.questionText}>
+          {questionOf(currentQ) || '（未填写题目）'}
+        </MathText>
         {isChoice && (
           <View style={styles.optionList}>
             {CHOICE_KEYS.map(key => (
-              <Text key={key} style={styles.optionText}>
+              <MathText key={key} style={styles.optionText}>
                 {key}. {optionOf(currentQ, key)}
-              </Text>
+              </MathText>
             ))}
           </View>
         )}
@@ -293,6 +296,7 @@ export default function StudyScreen() {
               showResult && (isCorrect ? styles.inputCorrect : styles.inputWrong),
             ]}
             placeholder="在此输入你的答案..."
+            placeholderTextColor="#9AA4B2"
             value={userAnswer}
             onChangeText={setUserAnswer}
             editable={!showResult} // 提交后不可再修改
@@ -309,9 +313,9 @@ export default function StudyScreen() {
               {hasAnswer ? (isCorrect ? '✅ 回答正确！' : '❌ 回答错误') : '📝 暂无标准答案，请对照题目自评'}
             </Text>
             {!isCorrect && hasAnswer && (
-              <Text style={styles.correctAnswerText}>
+              <MathText style={styles.correctAnswerText}>
                 正确答案：{correctAnswer}
-              </Text>
+              </MathText>
             )}
             <TouchableOpacity style={styles.primaryBtn} onPress={handleNext}>
               <Text style={styles.btnText}>
@@ -326,73 +330,120 @@ export default function StudyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa', padding: 20 },
+  container: { flex: 1, backgroundColor: '#F3F6FC', padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   emptyText: { fontSize: 18, color: '#666', textAlign: 'center' },
-  setupContainer: { flex: 1, backgroundColor: '#f8f9fa', padding: 20 },
-  setupTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginTop: 8 },
-  setupHint: { fontSize: 14, color: '#777', marginTop: 8, marginBottom: 20 },
-  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 10 },
+  setupContainer: { flex: 1, backgroundColor: '#F3F6FC', padding: 16 },
+  setupTitle: { fontSize: 26, fontWeight: '700', color: '#1F2937', marginTop: 8 },
+  setupHint: { fontSize: 14, color: '#7B8494', marginTop: 8, marginBottom: 20, lineHeight: 22 },
+  sectionLabel: { fontSize: 15, fontWeight: '600', color: '#4B5563', marginTop: 14, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d9deea',
-    backgroundColor: '#fff',
+    borderColor: '#E2E8F4',
+    backgroundColor: '#FFFFFF',
   },
-  chipActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  chipText: { fontSize: 14, color: '#555', fontWeight: '600' },
-  chipTextActive: { color: '#fff' },
+  chipActive: { backgroundColor: '#3B6EF6', borderColor: '#3B6EF6' },
+  chipText: { fontSize: 14, color: '#5B6472', fontWeight: '600' },
+  chipTextActive: { color: '#FFFFFF' },
   startBtn: {
     marginTop: 28,
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: '#3B6EF6',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#3B6EF6',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 4},
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  statsText: { fontSize: 12.5, color: '#777' },
+  statsText: { fontSize: 12.5, color: '#7B8494' },
   
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  progressText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  tag: { backgroundColor: '#E5F0FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  tagText: { color: '#007AFF', fontSize: 14, fontWeight: 'bold' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  progressText: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
+  tag: { backgroundColor: '#EAF1FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
+  tagText: { color: '#3B6EF6', fontSize: 14, fontWeight: '700' },
   
-  questionBox: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 2, minHeight: 150 },
-  questionLabel: { fontSize: 14, color: '#999', marginBottom: 10 },
-  questionText: { fontSize: 20, fontWeight: 'bold', color: '#333', lineHeight: 30 },
-  optionList: { marginTop: 14, gap: 8 },
-  optionText: { fontSize: 16, color: '#444', lineHeight: 24 },
+  questionBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B6EF6',
+    elevation: 2,
+    shadowColor: '#1F2937',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 4},
+    minHeight: 150,
+  },
+  questionLabel: { fontSize: 12, color: '#8A94A6', marginBottom: 10, letterSpacing: 0.4 },
+  questionText: { fontSize: 22, fontWeight: '600', color: '#1F2937', lineHeight: 34 },
+  optionList: { marginTop: 16, gap: 10 },
+  optionText: { fontSize: 16, color: '#3F4A5A', lineHeight: 26 },
   choiceRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   choiceBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: '#DDE5F2',
+    backgroundColor: '#F8FAFF',
     alignItems: 'center',
   },
-  choiceBtnActive: { borderColor: '#007AFF', backgroundColor: '#EAF2FF' },
+  choiceBtnActive: { borderColor: '#3B6EF6', backgroundColor: '#EAF1FF' },
   choiceBtnCorrect: { borderColor: '#34C759', backgroundColor: '#E9F9EF' },
   choiceBtnWrong: { borderColor: '#FF3B30', backgroundColor: '#FDECEC' },
-  choiceText: { textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: '#333' },
+  choiceText: { textAlign: 'center', fontSize: 18, fontWeight: '700', color: '#1F2937' },
   
-  answerBox: { backgroundColor: '#fff', padding: 20, borderRadius: 12, elevation: 2 },
-  input: { backgroundColor: '#f8f9fa', borderWidth: 2, borderColor: '#eee', borderRadius: 8, padding: 15, fontSize: 16, marginBottom: 15 },
-  inputCorrect: { borderColor: '#34C759', backgroundColor: '#f0fff4' },
-  inputWrong: { borderColor: '#FF3B30', backgroundColor: '#fff0f0' },
+  answerBox: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
+    elevation: 2,
+    shadowColor: '#1F2937',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 4},
+  },
+  input: { backgroundColor: '#F8FAFF', borderWidth: 1, borderColor: '#E2E8F4', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 15 },
+  inputCorrect: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
+  inputWrong: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
   
-  primaryBtn: { backgroundColor: '#007AFF', padding: 15, borderRadius: 8, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  primaryBtn: {
+    backgroundColor: '#3B6EF6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#3B6EF6',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 3},
+  },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   
   resultBox: { alignItems: 'center' },
-  resultText: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+  resultText: { fontSize: 20, fontWeight: '700', marginBottom: 10 },
   correctAnswerText: { fontSize: 16, color: '#666', marginBottom: 20, textAlign: 'center' },
 });

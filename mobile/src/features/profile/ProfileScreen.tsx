@@ -53,7 +53,7 @@ export default function ProfileScreen() {
 
       <Text style={styles.sectionTitle}>📊 我的错题</Text>
       {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#3B6EF6" />
       ) : error ? (
         <Text style={styles.errorText}>加载失败：{error}</Text>
       ) : (
@@ -80,13 +80,13 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: '#F3F6FC' },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3B6EF6',
     alignItems: 'center',
     padding: 30,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   avatar: {
     width: 80,
@@ -102,15 +102,17 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: 'bold', margin: 20 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 10 },
   statBox: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     padding: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     flex: 1,
     marginHorizontal: 5,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
+    elevation: 2,
   },
-  statNum: { fontSize: 22, fontWeight: 'bold', color: '#007AFF', marginBottom: 5 },
+  statNum: { fontSize: 22, fontWeight: '700', color: '#3B6EF6', marginBottom: 5 },
   rateText: { textAlign: 'center', color: '#666', marginTop: 16 },
   errorText: { textAlign: 'center', color: '#FF3B30', marginTop: 20 },
 });

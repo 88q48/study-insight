@@ -14,8 +14,8 @@ export default function AppNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#3B6EF6',
+        tabBarInactiveTintColor: '#8A94A6',
         // 用 Emoji 代替图标，避免配置原生图标库
         tabBarIcon: ({ focused }) => {
           let icon = '';

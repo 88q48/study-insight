@@ -36,7 +36,7 @@ export default function EntryScreen() {
   const updateOption = (key: ChoiceKey, value: string) => {
     setOptions(current => ({...current, [key]: value}));
   };
-  
+
   // 状态管理
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
@@ -165,10 +165,10 @@ export default function EntryScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        
+
         {/* OCR 拍照按钮 */}
-        <TouchableOpacity 
-          style={[styles.ocrBtn, isOcrLoading && { opacity: 0.7 }]} 
+        <TouchableOpacity
+          style={[styles.ocrBtn, isOcrLoading && { opacity: 0.7 }]}
           onPress={handleOCR}
           disabled={isOcrLoading}
         >
@@ -203,29 +203,32 @@ export default function EntryScreen() {
         </View>
 
         <Text style={styles.label}>科目 *</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="例如：数学" 
-          value={subject} 
-          onChangeText={setSubject} 
+        <TextInput
+          style={styles.input}
+          placeholder="例如：数学"
+          placeholderTextColor="#9AA4B2"
+          value={subject}
+          onChangeText={setSubject}
         />
 
         <Text style={styles.label}>知识点</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="例如：导数" 
-          value={knowledgePoint} 
-          onChangeText={setKnowledgePoint} 
+        <TextInput
+          style={styles.input}
+          placeholder="例如：导数"
+          placeholderTextColor="#9AA4B2"
+          value={knowledgePoint}
+          onChangeText={setKnowledgePoint}
         />
 
         <Text style={styles.label}>题目内容 *</Text>
-        <TextInput 
-          style={[styles.input, { height: 100 }]} 
-          multiline 
-          textAlignVertical="top" 
-          placeholder="输入题目..." 
-          value={question} 
-          onChangeText={setQuestion} 
+        <TextInput
+          style={[styles.input, { height: 100 }]}
+          multiline
+          textAlignVertical="top"
+          placeholder="输入题目..."
+          placeholderTextColor="#9AA4B2"
+          value={question}
+          onChangeText={setQuestion}
         />
 
         {questionType === 'choice' ? (
@@ -241,6 +244,7 @@ export default function EntryScreen() {
                 <TextInput
                   style={[styles.input, styles.optionInput]}
                   placeholder={`选项 ${key}`}
+                  placeholderTextColor="#9AA4B2"
                   value={options[key]}
                   onChangeText={value => updateOption(key, value)}
                 />
@@ -270,15 +274,16 @@ export default function EntryScreen() {
               multiline
               textAlignVertical="top"
               placeholder="输入答案..."
+              placeholderTextColor="#9AA4B2"
               value={answer}
               onChangeText={setAnswer}
             />
           </>
         )}
 
-        <TouchableOpacity 
-          style={[styles.submitBtn, isSubmitting && { opacity: 0.5 }]} 
-          onPress={handleSubmit} 
+        <TouchableOpacity
+          style={[styles.submitBtn, isSubmitting && { opacity: 0.5 }]}
+          onPress={handleSubmit}
           disabled={isSubmitting}
         >
           <Text style={styles.submitBtnText}>
@@ -291,73 +296,78 @@ export default function EntryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  ocrBtn: { 
-    backgroundColor: '#34C759', 
-    padding: 15, 
-    borderRadius: 8, 
-    alignItems: 'center', 
+  container: { flex: 1, backgroundColor: '#F3F6FC' },
+  ocrBtn: {
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
     marginBottom: 20,
     flexDirection: 'row',
     justifyContent: 'center'
   },
-  ocrBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  label: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 8 },
+  ocrBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  label: { fontSize: 15, fontWeight: '600', color: '#4B5563', marginBottom: 8 },
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   typeBtn: {
     flex: 1,
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: '#E2E8F4',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
   },
-  typeBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  typeBtnText: { fontSize: 15, fontWeight: '600', color: '#666' },
+  typeBtnActive: { backgroundColor: '#3B6EF6', borderColor: '#3B6EF6' },
+  typeBtnText: { fontSize: 15, fontWeight: '600', color: '#5B6472' },
   typeBtnTextActive: { color: '#fff' },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   optionBadge: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EAF1FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionBadgeActive: { backgroundColor: '#34C759' },
-  optionBadgeText: { color: '#5B7CFA', fontWeight: 'bold' },
+  optionBadgeText: { color: '#3B6EF6', fontWeight: 'bold' },
   optionBadgeTextActive: { color: '#fff' },
   optionInput: { flex: 1, marginBottom: 0 },
   correctRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   correctBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: '#E2E8F4',
+    backgroundColor: '#F8FAFF',
     alignItems: 'center',
   },
   correctBtnActive: { backgroundColor: '#34C759', borderColor: '#34C759' },
   correctBtnText: { fontSize: 16, fontWeight: 'bold', color: '#666' },
   correctBtnTextActive: { color: '#fff' },
-  input: { 
-    backgroundColor: '#fff', 
-    borderWidth: 1, 
-    borderColor: '#ddd', 
-    borderRadius: 8, 
-    padding: 12, 
-    fontSize: 16, 
-    marginBottom: 15 
+  input: {
+    backgroundColor: '#F8FAFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F4',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 15
   },
-  submitBtn: { 
-    backgroundColor: '#007AFF', 
-    padding: 15, 
-    borderRadius: 8, 
-    alignItems: 'center', 
+  submitBtn: {
+    backgroundColor: '#3B6EF6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
     marginTop: 10,
-    marginBottom: 40
+    marginBottom: 40,
+    elevation: 2,
+    shadowColor: '#3B6EF6',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 3},
   },
-  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 });

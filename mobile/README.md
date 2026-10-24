@@ -70,6 +70,17 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## 数学公式
+
+题目、选项和答案通过 `shared/ui/MathText.tsx` 显示，采用衬线数学字体，并支持常见 LaTeX 写法：
+
+- `x^2` → `x²`
+- `\frac{a}{b}` → `(a)/(b)`
+- `\sqrt{x}` → `√(x)`
+- `\alpha`、`\times`、`\le` 等常见符号
+
+这层是轻量 Unicode 排版，不引入 WebView / KaTeX 原生依赖。
+
 ## 页面
 
 - **录入**：拍照/相册选图，ML Kit 中文 OCR 识别题目；可手动补充科目、知识点、答案；提交到 `POST /api/v1/errors`
