@@ -21,7 +21,7 @@ import java.util.Calendar
  * Android UsageStats 桥接：
  * - 检查 / 打开「使用情况访问」特殊权限
  * - 读取指定时间窗口内的前台应用会话
- * - 用 SharedPreferences 保存同步游标，避免重复上传
+ * - 用 SharedPreferences 保存同步游标，避免重复读取
  *
  * 只返回已经结束的前台会话。当前仍在使用的会话会在下一次同步时再读取，
  * 这样不需要在客户端做复杂的去重和补写。

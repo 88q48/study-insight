@@ -39,7 +39,7 @@ import {
  * 原生模块、sync、后端表都还留着，这只是界面开关。
  * 要恢复就改成 true，别的地方都不用动。
  */
-const SHOW_FOCUS_TAB = false;
+const SHOW_FOCUS_TAB = true;
 
 type ProfileTab = 'errors' | 'focus';
 
@@ -199,7 +199,9 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Text style={styles.stateTitle}>学情还没加载出来</Text>
-              <Text style={styles.stateHint}>{error || '请确认后端服务已启动'}</Text>
+              <Text style={styles.stateHint}>
+                {error || '本机数据读取失败，请重试'}
+              </Text>
               <TouchableOpacity
                 accessibilityRole="button"
                 onPress={() => {
@@ -292,7 +294,7 @@ export default function ProfileScreen() {
                   专注效率需要真实使用记录
                 </Text>
                 <Text style={styles.permissionHint}>
-                  开启「使用情况访问」后，只上传应用名和使用时长，不读取内容。
+                  开启「使用情况访问」后，只读取应用名和使用时长，保存在本机。
                 </Text>
               </View>
               <TouchableOpacity

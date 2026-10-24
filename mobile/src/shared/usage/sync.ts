@@ -69,7 +69,7 @@ function toUploadEvent(session: UsageSession): UsageEventUpload | null {
   );
 
   return {
-    // 用会话起止时间生成稳定 id；同一会话重复上传时后端只保留一条。
+    // 用会话起止时间生成稳定 id；同一会话重复同步时本地只保留一条。
     event_id: `android_${DEVICE_ID}_${session.packageName}_${Math.round(
       session.startMs,
     )}_${Math.round(session.endMs)}`,
@@ -85,10 +85,10 @@ function toUploadEvent(session: UsageSession): UsageEventUpload | null {
 }
 
 /**
- * 静默同步 Android 使用记录：
+ * 静默同步 Android 使用记录到手机本地：
  * - 没权限时返回 permission_denied，不弹系统设置
- * - 只上传上次游标之后、已经结束的前台会话
- * - 上传成功后才推进游标，失败下次会重试
+ * - 只读取上次游标之后、已经结束的前台会话
+ * - 保存成功后才推进游标，失败下次会重试
  */
 export async function syncUsageStats(): Promise<UsageSyncResult> {
   if (!isUsageStatsSupported) {
