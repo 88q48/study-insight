@@ -100,54 +100,75 @@ export default function StudyScreen() {
         <Text style={styles.setupHint}>选择题量和科目，优先安排错得多的题。</Text>
 
         {setupLoading ? (
-          <ActivityIndicator size="large" color="#007AFF" style={{marginTop: 30}} />
+          <ActivityIndicator size="large" color="#3B6EF6" style={{marginTop: 30}} />
         ) : (
           <>
-            <Text style={styles.sectionLabel}>科目</Text>
-            <View style={styles.chipRow}>
-              {['全部', ...subjects.map(item => item.subject)].map(subject => (
-                <TouchableOpacity
-                  key={subject}
-                  style={[
-                    styles.chip,
-                    selectedSubject === subject && styles.chipActive,
-                  ]}
-                  onPress={() => setSelectedSubject(subject)}
-                >
-                  <Text
+            <View style={styles.setupCard}>
+              <Text style={styles.sectionLabel}>科目</Text>
+              <View style={styles.chipRow}>
+                {['全部', ...subjects.map(item => item.subject)].map(subject => (
+                  <TouchableOpacity
+                    key={subject}
                     style={[
-                      styles.chipText,
-                      selectedSubject === subject && styles.chipTextActive,
+                      styles.chip,
+                      selectedSubject === subject && styles.chipActive,
                     ]}
+                    onPress={() => setSelectedSubject(subject)}
                   >
-                    {subject}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selectedSubject === subject && styles.chipTextActive,
+                      ]}
+                    >
+                      {subject}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.sectionLabel, {marginTop: 22}]}>做题数</Text>
+              <View style={styles.countRow}>
+                {[5, 10, 20, 50].map(count => (
+                  <TouchableOpacity
+                    key={count}
+                    style={[
+                      styles.countCard,
+                      questionLimit === count && styles.countCardActive,
+                    ]}
+                    onPress={() => setQuestionLimit(count)}
+                  >
+                    <Text
+                      style={[
+                        styles.countNumber,
+                        questionLimit === count && styles.countTextActive,
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.countUnit,
+                        questionLimit === count && styles.countTextActive,
+                      ]}
+                    >
+                      题
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Text style={styles.infoCheck}>✓</Text>
+                </View>
+                <Text style={styles.infoText}>
+                  已开启「错题优先」，薄弱题目会先出现
+                </Text>
+              </View>
             </View>
 
-            <Text style={styles.sectionLabel}>做题数</Text>
-            <View style={styles.chipRow}>
-              {[5, 10, 20, 50].map(count => (
-                <TouchableOpacity
-                  key={count}
-                  style={[
-                    styles.chip,
-                    questionLimit === count && styles.chipActive,
-                  ]}
-                  onPress={() => setQuestionLimit(count)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      questionLimit === count && styles.chipTextActive,
-                    ]}
-                  >
-                    {count} 题
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <View style={styles.setupSpacer} />
 
             <TouchableOpacity
               style={[styles.startBtn, loading && {opacity: 0.5}]}
@@ -155,7 +176,7 @@ export default function StudyScreen() {
               disabled={loading}
             >
               <Text style={styles.btnText}>
-                {loading ? '加载中...' : '开始练习'}
+                {loading ? '加载中...' : `开始练习 · ${questionLimit} 题  →`}
               </Text>
             </TouchableOpacity>
           </>
@@ -333,11 +354,59 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F6FC', padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   emptyText: { fontSize: 18, color: '#666', textAlign: 'center' },
-  setupContainer: { flex: 1, backgroundColor: '#F3F6FC', padding: 16 },
-  setupTitle: { fontSize: 26, fontWeight: '700', color: '#1F2937', marginTop: 8 },
-  setupHint: { fontSize: 14, color: '#7B8494', marginTop: 8, marginBottom: 20, lineHeight: 22 },
-  sectionLabel: { fontSize: 15, fontWeight: '600', color: '#4B5563', marginTop: 14, marginBottom: 10 },
+  setupContainer: { flex: 1, backgroundColor: '#F4F5FF', paddingHorizontal: 20, paddingTop: 2 },
+  setupTitle: { fontSize: 30, fontWeight: '800', color: '#111827', marginTop: 4 },
+  setupHint: { fontSize: 15, color: '#6B7280', marginTop: 8, marginBottom: 18, lineHeight: 23 },
+  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 0, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  setupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#EEF0FA',
+    shadowColor: '#111827',
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    shadowOffset: {width: 0, height: 8},
+    elevation: 3,
+  },
+  countRow: { flexDirection: 'row', gap: 10 },
+  countCard: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7F2',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  countCardActive: {backgroundColor: '#3B6EF6', borderColor: '#3B6EF6'},
+  countNumber: {fontSize: 22, fontWeight: '700', color: '#111827'},
+  countUnit: {fontSize: 12, color: '#6B7280', marginTop: 1},
+  countTextActive: {color: '#FFFFFF'},
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: '#EEF4FF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 18,
+  },
+  infoIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#3B6EF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoCheck: {fontSize: 11, fontWeight: '800', color: '#3B6EF6'},
+  infoText: {flex: 1, fontSize: 12.5, color: '#4B5563', lineHeight: 18},
+  setupSpacer: {flex: 1, minHeight: 18},
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -350,7 +419,8 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: '#5B6472', fontWeight: '600' },
   chipTextActive: { color: '#FFFFFF' },
   startBtn: {
-    marginTop: 28,
+    marginTop: 24,
+    marginBottom: 12,
     backgroundColor: '#3B6EF6',
     padding: 16,
     borderRadius: 12,
