@@ -406,6 +406,51 @@ def test_attempt_stats_practice_priority_and_delete():
 
 
 
+def test_practice_queue_deduplicates_same_question():
+    """同一道题被多次录入时，练习队列只能出现一次。"""
+    now = _iso(_now())
+    cases = (
+        ("err_dup_a", "重复录入的题干"),
+        ("err_dup_b", "重复录入的题干"),
+        ("err_dup_c", "另一道题"),
+    )
+    for error_id, content in cases:
+        created = client.post(
+            "/api/v1/errors",
+            json={
+                "error_id": error_id,
+                "device_id": DEVICE,
+                "subject": "数学",
+                "knowledge_point": "去重",
+                "content": content,
+                "question_type": "fill",
+                "answer": "A",
+                "created_at": now,
+            },
+        )
+        assert created.status_code == 201
+
+    # err_dup_a 错两次，err_dup_b 错一次；应保留错得更多的 a。
+    for error_id, answer in (
+        ("err_dup_a", "wrong"),
+        ("err_dup_a", "wrong"),
+        ("err_dup_b", "wrong"),
+        ("err_dup_c", "A"),
+    ):
+        result = client.post(
+            f"/api/v1/errors/{error_id}/attempts",
+            json={"device_id": DEVICE, "answer": answer},
+        )
+        assert result.status_code == 200
+
+    practice = client.get(
+        f"/api/v1/errors/practice?device_id={DEVICE}&subject=数学&limit=10"
+    ).json()
+    ids = [item["error_id"] for item in practice["items"]]
+    assert ids == ["err_dup_a", "err_dup_c"]
+    assert "err_dup_b" not in ids
+
+
 def test_attempt_without_answer_is_skipped():
     """题目没录答案时，作答应被跳过而不是记成做错。
 

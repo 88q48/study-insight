@@ -44,6 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_error_device_created
     ON error_record(device_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_error_subject
     ON error_record(subject);
+CREATE INDEX IF NOT EXISTS idx_error_device_content
+    ON error_record(device_id, content);
 
 CREATE TABLE IF NOT EXISTS usage_event (
     event_id         TEXT PRIMARY KEY,
@@ -189,15 +191,29 @@ def get_error(error_id: str) -> dict[str, Any] | None:
 def practice_errors(
     device_id: str, subject: str | None = None, limit: int = 10
 ) -> list[dict[str, Any]]:
-    """按错题次数优先返回练习队列：错得越多越靠前。"""
-    sql = "SELECT * FROM error_record WHERE device_id = ?"
+    """按错题次数返回练习队列，同一道题只出现一次。
+
+    演示数据里同一道题可能因为多次录入而存在多条 error_record；
+    练习队列按 content 去重，保留错得最多、最近录入的那一条。
+    """
+    sql = (
+        "SELECT e.* FROM error_record e "
+        "WHERE e.device_id = ? "
+        "AND e.error_id = ("
+        "  SELECT e2.error_id FROM error_record e2 "
+        "  WHERE e2.device_id = e.device_id AND e2.content = e.content "
+        "  ORDER BY (e2.attempt_count - e2.correct_count) DESC, "
+        "    e2.attempt_count DESC, e2.created_at DESC, e2.error_id DESC "
+        "  LIMIT 1"
+        ") "
+    )
     params: list[Any] = [device_id]
     if subject:
-        sql += " AND subject = ?"
+        sql += " AND e.subject = ?"
         params.append(subject)
     sql += (
-        " ORDER BY (attempt_count - correct_count) DESC,"
-        " attempt_count DESC, created_at DESC, error_id DESC LIMIT ?"
+        " ORDER BY (e.attempt_count - e.correct_count) DESC,"
+        " e.attempt_count DESC, e.created_at DESC, e.error_id DESC LIMIT ?"
     )
     params.append(limit)
     with connection() as conn:

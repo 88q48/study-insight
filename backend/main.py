@@ -40,6 +40,8 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(errors="backslashreplace")
 
 app = FastAPI(title="学情洞察 API", version="0.2.0")
+from ocr_router import router as ocr_router
+app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["OCR 识别"])
 
 # 联调期放开跨域，客户端和看板端都可以直接请求；上线前收敛成具体域名。
 app.add_middleware(
@@ -418,4 +420,3 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )
-

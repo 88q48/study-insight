@@ -157,6 +157,11 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
               style={({pressed}) => [
                 styles.tabButton,
                 focused && styles.tabButtonActive,
+                focused && {
+                  backgroundColor: colors.glassStrong,
+                  borderColor: colors.glassEdge,
+                  shadowColor: colors.shadow,
+                },
                 pressed && styles.pressed,
               ]}
             >
@@ -259,9 +264,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabButtonActive: {
-    backgroundColor: 'rgba(255,255,255,0.86)',
-    borderColor: 'rgba(255,255,255,0.96)',
-    shadowColor: '#5C626B',
     shadowOpacity: 0.16,
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},

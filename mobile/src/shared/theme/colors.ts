@@ -28,8 +28,7 @@ export interface AppColors {
 }
 
 /**
- * 灰白液态玻璃主题。
- * 产品固定使用浅色方案，避免系统深色模式破坏玻璃层的通透感。
+ * 灰白液态玻璃主题（浅色备用）。
  */
 export const lightColors: AppColors = {
   background: '#EDEFF2',
@@ -61,7 +60,8 @@ export const lightColors: AppColors = {
 };
 
 /**
- * 保留深色令牌，方便后续切回自动主题；当前产品以灰白浅色为准。
+ * 默认深色液态玻璃主题。
+ * 固定使用该套令牌，不跟随系统深色/浅色设置切换。
  */
 export const darkColors: AppColors = {
   background: '#181A1D',
@@ -93,5 +93,6 @@ export const darkColors: AppColors = {
 };
 
 export function useAppColors(): AppColors {
-  return lightColors;
+  // 产品默认固定深色主题，不读取系统外观。
+  return darkColors;
 }

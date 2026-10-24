@@ -1,32 +1,32 @@
 import React, { useMemo } from 'react';
 import { StatusBar } from 'react-native';
 import {
-  DefaultTheme,
+  DarkTheme,
   NavigationContainer,
 } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/app/navigation/AppNavigator';
-import { lightColors } from './src/shared/theme/colors';
+import { darkColors } from './src/shared/theme/colors';
 
 export default function App() {
   const navigationTheme = useMemo(() => {
     return {
-      ...DefaultTheme,
+      ...DarkTheme,
       colors: {
-        ...DefaultTheme.colors,
-        primary: lightColors.primary,
-        background: lightColors.background,
-        card: lightColors.surface,
-        text: lightColors.text,
-        border: lightColors.border,
-        notification: lightColors.primary,
+        ...DarkTheme.colors,
+        primary: darkColors.primary,
+        background: darkColors.background,
+        card: darkColors.surface,
+        text: darkColors.text,
+        border: darkColors.border,
+        notification: darkColors.primary,
       },
     };
   }, []);
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
       <NavigationContainer theme={navigationTheme}>
         <AppNavigator />
       </NavigationContainer>

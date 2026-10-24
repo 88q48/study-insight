@@ -1,0 +1,129 @@
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from aip import AipOcr
+from openai import OpenAI
+import re
+import json
+
+router = APIRouter()
+
+APP_ID = "124538109"
+API_KEY = "bst7pscw8Dam9be1kDLL3VxG"
+SECRET_KEY = "yHJ4ptDYfZxhNxBA1kynUhCj0dTXhgqr"
+client = AipOcr(APP_ID, API_KEY, SECRET_KEY)
+
+
+LLM_API_KEY = "sk-5bf69776bb0e4921badca4d1b06c6cd0" 
+
+llm_client = None
+if LLM_API_KEY and LLM_API_KEY.startswith("sk-"):
+    llm_client = OpenAI(
+        api_key=LLM_API_KEY, 
+        base_url="https://api.deepseek.com" 
+    )
+
+
+
+def call_baidu_ocr(image_bytes: bytes) -> str:
+    """调用百度 OCR 识别文字，并包含错误拦截"""
+    try:
+        result = client.basicGeneral(image_bytes)
+        
+        # 拦截百度的错误码（比如额度用完、图片不对）
+        if "error_code" in result:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"百度OCR报错: {result.get('error_msg')} (Code: {result.get('error_code')})"
+            )
+
+        if "words_result" in result:
+            return "\n".join(item["words"] for item in result["words_result"])
+        return ""
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR服务异常: {str(e)}")
+
+
+def clean_ocr_text(text: str) -> str:
+    """清洗乱码和多余的换行（针对你之前截图里的问题）"""
+    if not text:
+        return ""
+    # 干掉常见的乱码字符
+    text = re.sub(r'\\u00e8|\u00e8|\\n', '\n', text)
+    text = re.sub(r'\\u[0-9a-fA-F]{4}', '', text) # 干掉其他 unicode 转义
+    text = re.sub(r' +', ' ', text) # 多个空格变一个
+    return text.strip()
+
+
+def parse_with_llm(text: str):
+    """调用 DeepSeek 提取结构化信息"""
+    if not llm_client:
+        return None
+
+    safe_text = text[:4000] 
+
+    prompt = f"""
+    你是一个专业的错题整理助手。请阅读以下 OCR 提取的试卷文本。
+    提取信息，并严格以 JSON 格式返回，不要包含任何 Markdown 标记或多余解释。
+    
+    要求的 JSON 格式如下：
+    {{
+      "subject": "科目(如：语文、数学、化学、英语)",
+      "question_type": "题型(如：单选题、文言文阅读、解答题)",
+      "question_content": "题目和选项内容（请保留清晰的换行排版）",
+      "answer": "答案与解析（如果文本里没有明确答案，返回空字符串）"
+    }}
+
+    试卷文本内容：
+    {safe_text}
+    """
+
+    try:
+        response = llm_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1 # 设置低温度，让模型更严谨，不乱编
+        )
+        # 返回解析后的字典
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"大模型解析失败: {e}")
+        return None
+
+
+
+@router.post("/parse")
+async def ocr_parse(file: UploadFile = File(...)):
+    # 1. 读取图片
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="上传的图片为空")
+    
+    # 2. 百度 OCR 提取纯文本
+    raw_text = call_baidu_ocr(contents)
+    if not raw_text:
+        raise HTTPException(status_code=400, detail="未能识别出文字，请换一张清晰的图片")
+    
+    # 3. 文本清洗（去乱码）
+    cleaned_text = clean_ocr_text(raw_text)
+    
+    # 4. 尝试 DeepSeek 结构化
+    parsed_data = parse_with_llm(cleaned_text)
+    
+    # 5. 组装返回给前端的最终结果
+    if parsed_data:
+        return {
+            "raw_text": cleaned_text,
+            "subject": parsed_data.get("subject", ""),
+            "question_type": parsed_data.get("question_type", ""),
+            "question_content": parsed_data.get("question_content", ""),
+            "answer": parsed_data.get("answer", "")
+        }
+    else:
+        # 兜底：如果大模型挂了，至少返回干净的长文本给前端，不让页面崩溃
+        return {
+            "raw_text": cleaned_text,
+            "subject": "未知科目",
+            "question_type": "未知题型",
+            "question_content": cleaned_text, 
+            "answer": ""
+        }
