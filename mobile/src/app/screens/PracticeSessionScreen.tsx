@@ -1,5 +1,4 @@
 import React, {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,7 +7,6 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -42,7 +40,6 @@ import MathText from '../../shared/ui/MathText';
 import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PracticeSession'>;
-type Feedback = 'correct' | 'wrong' | null;
 
 function dedupeQuestions(items: ErrorItem[]): ErrorItem[] {
   const seen = new Set<string>();
@@ -74,9 +71,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [isMarkingMastered, setIsMarkingMastered] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback>(null);
   const allowExitRef = useRef(false);
-  const flash = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let active = true;
@@ -126,40 +121,14 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     return unsubscribe;
   }, [loading, navigation, questions.length]);
 
-  const runFeedback = useCallback(
-    (kind: Exclude<Feedback, null>) => {
-      setFeedback(kind);
-      playFeedbackSound(kind === 'correct' ? 'success' : 'error');
-      flash.stopAnimation();
-      flash.setValue(0);
-      Animated.sequence([
-        Animated.timing(flash, {
-          toValue: 1,
-          duration: 120,
-          useNativeDriver: true,
-        }),
-        Animated.delay(560),
-        Animated.timing(flash, {
-          toValue: 0,
-          duration: 520,
-          useNativeDriver: true,
-        }),
-      ]).start(({finished}) => {
-        if (finished) {
-          setFeedback(null);
-        }
-      });
-    },
-    [flash],
-  );
-
   const currentQ = questions[currentIndex];
   const correctAnswer = currentQ ? answerOf(currentQ) : '';
   const hasAnswer = correctAnswer.trim().length > 0;
   const isChoice = currentQ ? isChoiceQuestion(currentQ) : false;
+  const canSubmit = userAnswer.trim().length > 0;
 
   const handleCheck = async () => {
-    if (!currentQ) {
+    if (!currentQ || !userAnswer.trim()) {
       return;
     }
     const normalize = (value: string) => value.trim().toLowerCase();
@@ -169,7 +138,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     setIsCorrect(localCorrect);
     setShowResult(true);
     if (hasAnswer) {
-      runFeedback(localCorrect ? 'correct' : 'wrong');
+      playFeedbackSound(localCorrect ? 'success' : 'error');
     }
 
     try {
@@ -181,7 +150,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
         ),
       );
       if (hasAnswer && result.correct !== localCorrect) {
-        runFeedback(result.correct ? 'correct' : 'wrong');
+        playFeedbackSound(result.correct ? 'success' : 'error');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '请检查网络';
@@ -212,15 +181,8 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     }
   };
 
-  const resetFeedback = () => {
-    flash.stopAnimation();
-    flash.setValue(0);
-    setFeedback(null);
-  };
-
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
-      resetFeedback();
       setCurrentIndex(currentIndex + 1);
       setUserAnswer('');
       setShowResult(false);
@@ -233,12 +195,10 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     ]);
   };
 
-  const feedbackColor =
-    feedback === 'correct'
-      ? colors.success
-      : feedback === 'wrong'
-        ? colors.danger
-        : 'transparent';
+  const progress =
+    questions.length > 0
+      ? Math.min(100, ((currentIndex + (showResult ? 1 : 0)) / questions.length) * 100)
+      : 0;
 
   const renderHeader = () => (
     <View style={[styles.topBar, {paddingTop: insets.top + 8}]}>
@@ -246,21 +206,18 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
         accessibilityRole="button"
         accessibilityLabel="退出专注练习"
         onPress={() => navigation.goBack()}
-        style={styles.backBtn}
+        style={styles.closeBtn}
       >
-        <Text style={styles.backIcon}>‹</Text>
+        <Text style={styles.closeIcon}>✕</Text>
       </TouchableOpacity>
-      <View style={styles.titleWrap}>
-        <Text style={styles.title}>专注练习</Text>
-        <Text style={styles.subtitle}>{subject || '全部科目'} · 错题优先</Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, {width: `${progress}%`}]} />
       </View>
-      {!loading && questions.length > 0 && (
-        <View style={styles.counterPill}>
-          <Text style={styles.counterText}>
-            {currentIndex + 1}/{questions.length}
-          </Text>
-        </View>
-      )}
+      {!loading && questions.length > 0 ? (
+        <Text style={styles.progressLabel}>
+          {currentIndex + 1}/{questions.length}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -269,7 +226,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
       <WallpaperBackdrop />
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {renderHeader()}
 
@@ -300,184 +257,199 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
             </TouchableOpacity>
           </View>
         ) : (
+          <>
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={[
-              styles.content,
-              {paddingBottom: insets.bottom + 24},
-            ]}
+            contentContainerStyle={[styles.content, {paddingBottom: 24}]}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.focusBanner}>
-              <Text style={styles.focusBannerIcon}>◉</Text>
-              <Text style={styles.focusBannerText}>
-                专注模式已开启，答题期间无法查看错题列表
+            <View style={styles.questionArea}>
+              <Text style={styles.questionMeta}>
+                {currentQ.subject || subject || '综合练习'}
               </Text>
-            </View>
-
-            <View style={styles.statsRow}>
-              <Text style={styles.statsText}>
-                做 {currentQ.attempt_count ?? 0} 次 · 正确率{' '}
-                {currentQ.accuracy ?? 0}%
-              </Text>
-              <Text style={styles.statsText}>
-                错 {currentQ.wrong_count ?? 0} 次
-              </Text>
-            </View>
-
-            <View style={styles.questionBox}>
-              <View style={styles.questionHeader}>
-                <Text style={styles.questionLabel}>题目</Text>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {currentQ.subject || '未分类'}
-                  </Text>
-                </View>
-              </View>
               <MathText style={styles.questionText}>
                 {questionOf(currentQ) || '（未填写题目）'}
               </MathText>
-              {isChoice && (
-                <View style={styles.optionList}>
-                  {CHOICE_KEYS.map(key => (
-                    <MathText key={key} style={styles.optionText}>
-                      {key}. {optionOf(currentQ, key)}
-                    </MathText>
-                  ))}
-                </View>
-              )}
             </View>
 
-            <View style={styles.answerBox}>
-              <Text style={styles.answerTitle}>你的答案</Text>
+            <View style={styles.optionsArea}>
               {isChoice ? (
-                <View style={styles.choiceRow}>
-                  {CHOICE_KEYS.map(key => {
-                    const selected = userAnswer === key;
-                    const rightOption =
-                      showResult && correctAnswer.toUpperCase() === key;
-                    const wrongOption =
-                      showResult && hasAnswer && selected && !isCorrect;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        accessibilityRole="button"
-                        accessibilityState={{selected}}
-                        accessibilityLabel={`选择答案${key}`}
+                CHOICE_KEYS.map(key => {
+                  const selected = userAnswer === key;
+                  const rightOption =
+                    showResult &&
+                    correctAnswer.trim().toUpperCase() === key;
+                  const wrongOption =
+                    showResult && hasAnswer && selected && !isCorrect;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      accessibilityRole="button"
+                      accessibilityState={{selected}}
+                      accessibilityLabel={`选择答案${key}`}
+                      activeOpacity={0.85}
+                      onPress={() => setUserAnswer(key)}
+                      disabled={showResult}
+                      style={[
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        rightOption && styles.optionCardCorrect,
+                        wrongOption && styles.optionCardWrong,
+                      ]}>
+                      <Text
                         style={[
-                          styles.choiceBtn,
-                          selected && styles.choiceBtnActive,
-                          rightOption && styles.choiceBtnCorrect,
-                          wrongOption && styles.choiceBtnWrong,
-                        ]}
-                        onPress={() => setUserAnswer(key)}
-                        disabled={showResult}
-                      >
+                          styles.optionCardText,
+                          selected && styles.optionCardTextSelected,
+                          rightOption && styles.optionCardTextCorrect,
+                          wrongOption && styles.optionCardTextWrong,
+                        ]}>
+                        {optionOf(currentQ, key) || `选项 ${key}`}
+                      </Text>
+                      {selected || rightOption ? (
                         <Text
                           style={[
-                            styles.choiceText,
-                            selected && styles.choiceTextActive,
-                          ]}
-                        >
-                          {selected ? `✓ ${key}` : key}
+                            styles.optionCheck,
+                            rightOption && styles.optionCheckCorrect,
+                            wrongOption && styles.optionCheckWrong,
+                          ]}>
+                          ✓
                         </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <TextInput
-                  style={[
-                    styles.input,
-                    showResult &&
-                      hasAnswer &&
-                      (isCorrect ? styles.inputCorrect : styles.inputWrong),
-                  ]}
-                  placeholder="在此输入你的答案..."
-                  placeholderTextColor={colors.placeholder}
-                  value={userAnswer}
-                  onChangeText={setUserAnswer}
-                  editable={!showResult}
-                />
-              )}
-
-              {!showResult ? (
-                <TouchableOpacity style={styles.primaryBtn} onPress={handleCheck}>
-                  <Text style={styles.btnText}>提交答案</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.resultBox}>
-                  <Text
-                    style={[
-                      styles.resultText,
-                      {
-                        color: hasAnswer
-                          ? isCorrect
-                            ? colors.success
-                            : colors.danger
-                          : colors.textMuted,
-                      },
-                    ]}
-                  >
-                    {hasAnswer
-                      ? isCorrect
-                        ? '✓ 回答正确'
-                        : '× 回答错误'
-                      : '暂无标准答案，请对照题目自评'}
-                  </Text>
-                  <Text style={styles.userAnswerText}>
-                    你的答案：{userAnswer.trim() || '未作答'}
-                  </Text>
-                  {!isCorrect && hasAnswer && (
-                    <MathText style={styles.correctAnswerText}>
-                      正确答案：{correctAnswer}
-                    </MathText>
-                  )}
-                  {currentQ.mastered ? (
-                    <Text style={styles.masteredText}>✓ 已掌握</Text>
-                  ) : isCorrect && hasAnswer ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.secondaryBtn,
-                        styles.masteryBtn,
-                        isMarkingMastered && styles.btnDisabled,
-                      ]}
-                      onPress={handleMarkMastered}
-                      disabled={isMarkingMastered}
-                    >
-                      <Text style={styles.secondaryBtnText}>
-                        {isMarkingMastered ? '正在标记...' : '标记已掌握'}
-                      </Text>
+                      ) : null}
                     </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={handleNext}
-                  >
-                    <Text style={styles.btnText}>
-                      {currentIndex < questions.length - 1
-                        ? '下一题'
-                        : '完成本轮'}
-                    </Text>
-                  </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.fillArea}>
+                  <Text style={styles.fillLabel}>你的答案</Text>
+                  <TextInput
+                    style={[
+                      styles.fillInput,
+                      showResult &&
+                        hasAnswer &&
+                        (isCorrect ? styles.inputCorrect : styles.inputWrong),
+                    ]}
+                    multiline
+                    textAlignVertical="top"
+                    placeholder="输入你的答案..."
+                    placeholderTextColor={colors.placeholder}
+                    value={userAnswer}
+                    onChangeText={setUserAnswer}
+                    editable={!showResult}
+                  />
                 </View>
               )}
             </View>
           </ScrollView>
+
+            {showResult ? (
+              <View
+                style={[
+                  styles.resultPanel,
+                  {paddingBottom: insets.bottom + 12},
+                ]}>
+                <View style={styles.resultHeader}>
+                  <View
+                    style={[
+                      styles.resultBadge,
+                      {
+                        backgroundColor:
+                          hasAnswer && isCorrect
+                            ? colors.success
+                            : hasAnswer
+                              ? colors.danger
+                              : colors.textMuted,
+                      },
+                    ]}>
+                    <Text style={styles.resultBadgeText}>
+                      {hasAnswer && isCorrect ? '✓' : hasAnswer ? '×' : '·'}
+                    </Text>
+                  </View>
+                  <View style={styles.resultHeaderCopy}>
+                    <Text
+                      style={[
+                        styles.resultTitle,
+                        {
+                          color: hasAnswer
+                            ? isCorrect
+                              ? colors.success
+                              : colors.danger
+                            : colors.textMuted,
+                        },
+                      ]}>
+                      {hasAnswer
+                        ? isCorrect
+                          ? '太棒了！'
+                          : '再想想'
+                        : '看看解析'}
+                    </Text>
+                    <Text style={styles.userAnswerText}>
+                      你的答案：{userAnswer.trim() || '未作答'}
+                    </Text>
+                  </View>
+                </View>
+                {!isCorrect && hasAnswer ? (
+                  <Text style={styles.correctAnswerText}>
+                    正确答案：{correctAnswer}
+                  </Text>
+                ) : null}
+                {currentQ.mastered ? (
+                  <Text style={styles.masteredText}>✓ 已掌握</Text>
+                ) : isCorrect && hasAnswer ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.masteryButton,
+                      isMarkingMastered && styles.btnDisabled,
+                    ]}
+                    onPress={handleMarkMastered}
+                    disabled={isMarkingMastered}>
+                    <Text style={styles.masteryButtonText}>
+                      {isMarkingMastered ? '正在标记...' : '标记已掌握'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={[
+                    styles.continueBtn,
+                    hasAnswer && isCorrect
+                      ? styles.continueBtnCorrect
+                      : styles.continueBtnNeutral,
+                  ]}
+                  onPress={handleNext}>
+                  <Text style={styles.continueText}>
+                    {currentIndex < questions.length - 1
+                      ? '继续'
+                      : '完成本轮'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.bottomBar,
+                  {paddingBottom: insets.bottom + 10},
+                ]}>
+                <TouchableOpacity
+                  style={[
+                    styles.continueBtn,
+                    canSubmit
+                      ? styles.continueBtnReady
+                      : styles.continueBtnDisabled,
+                  ]}
+                  disabled={!canSubmit}
+                  onPress={handleCheck}>
+                  <Text
+                    style={[
+                      styles.continueText,
+                      !canSubmit && styles.continueTextDisabled,
+                    ]}>
+                    继续
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
       </KeyboardAvoidingView>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.feedbackEdge,
-          {
-            borderColor: feedbackColor,
-            backgroundColor: feedback ? `${feedbackColor}12` : 'transparent',
-            opacity: flash,
-          },
-        ]}
-      />
     </View>
   );
 }
@@ -489,27 +461,40 @@ const makeStyles = (colors: AppColors) =>
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 18,
-      paddingBottom: 14,
-      backgroundColor: colors.glass,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.glassBorder,
+      gap: 14,
+      paddingHorizontal: 20,
+      paddingBottom: 10,
     },
-    backBtn: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+    closeBtn: {
+      width: 36,
+      height: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.glass,
-      borderWidth: 1,
-      borderColor: colors.glassBorder,
     },
-    backIcon: {
+    closeIcon: {
       fontSize: 30,
-      lineHeight: 32,
-      color: colors.text,
-      marginTop: -3,
+      lineHeight: 34,
+      fontWeight: '300',
+      color: '#8B98A0',
+    },
+    progressTrack: {
+      flex: 1,
+      height: 14,
+      borderRadius: 7,
+      overflow: 'hidden',
+      backgroundColor: '#2B353B',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 7,
+      backgroundColor: '#8ED847',
+    },
+    progressLabel: {
+      width: 38,
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textAlign: 'right',
     },
     titleWrap: {flex: 1, marginLeft: 12},
     title: {fontSize: 20, fontWeight: '800', color: colors.text},
@@ -528,7 +513,7 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '700',
     },
     scroll: {flex: 1},
-    content: {padding: 16},
+    content: {paddingHorizontal: 20, paddingTop: 18, flexGrow: 1},
     center: {
       flex: 1,
       alignItems: 'center',
@@ -623,11 +608,85 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 12,
     },
     tagText: {color: colors.textSecondary, fontSize: 12, fontWeight: '700'},
+    questionArea: {
+      paddingHorizontal: 4,
+      paddingTop: 8,
+      marginBottom: 26,
+    },
+    questionMeta: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.8,
+      marginBottom: 10,
+    },
     questionText: {
-      fontSize: 21,
-      fontWeight: '600',
+      fontSize: 30,
+      fontWeight: '800',
       color: colors.text,
-      lineHeight: 33,
+      lineHeight: 42,
+    },
+    optionsArea: {gap: 12},
+    optionCard: {
+      minHeight: 64,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    optionCardSelected: {
+      borderColor: colors.text,
+      borderWidth: 2,
+      backgroundColor: colors.surfaceAlt,
+    },
+    optionCardCorrect: {
+      borderColor: colors.success,
+      borderWidth: 2,
+      backgroundColor: colors.successSoft,
+    },
+    optionCardWrong: {
+      borderColor: colors.danger,
+      borderWidth: 2,
+      backgroundColor: colors.dangerSoft,
+    },
+    optionCardText: {
+      flex: 1,
+      fontSize: 17,
+      lineHeight: 25,
+      color: colors.text,
+    },
+    optionCardTextSelected: {fontWeight: '700'},
+    optionCardTextCorrect: {color: colors.success, fontWeight: '700'},
+    optionCardTextWrong: {color: colors.danger, fontWeight: '700'},
+    optionCheck: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    optionCheckCorrect: {color: colors.success},
+    optionCheckWrong: {color: colors.danger},
+    fillArea: {gap: 10},
+    fillLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+    },
+    fillInput: {
+      minHeight: 100,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 17,
+      lineHeight: 25,
+      color: colors.text,
     },
     optionList: {marginTop: 16, gap: 10},
     optionText: {fontSize: 16, color: colors.textSecondary, lineHeight: 26},
@@ -730,18 +789,87 @@ const makeStyles = (colors: AppColors) =>
       borderColor: colors.success,
     },
     btnDisabled: {opacity: 0.5},
+    bottomBar: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      backgroundColor: 'rgba(10,12,14,0.92)',
+    },
+    continueBtn: {
+      minHeight: 56,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+    },
+    continueBtnReady: {
+      backgroundColor: colors.primaryStrong,
+    },
+    continueBtnCorrect: {
+      backgroundColor: '#8ED847',
+    },
+    continueBtnNeutral: {
+      backgroundColor: colors.primaryStrong,
+    },
+    continueBtnDisabled: {
+      backgroundColor: '#2A3338',
+    },
+    continueText: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: colors.onPrimary,
+    },
+    continueTextDisabled: {
+      color: colors.textMuted,
+    },
+    resultPanel: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      backgroundColor: '#18252B',
+      borderTopWidth: 1,
+      borderTopColor: '#29383F',
+      gap: 12,
+    },
+    resultHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    resultBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    resultBadgeText: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: '#102015',
+    },
+    resultHeaderCopy: {flex: 1},
+    resultTitle: {
+      fontSize: 24,
+      fontWeight: '900',
+      lineHeight: 30,
+    },
+    masteryButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.success,
+      backgroundColor: colors.successSoft,
+    },
+    masteryButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.success,
+    },
     correctAnswerText: {
       fontSize: 16,
       color: colors.textSecondary,
       marginBottom: 20,
       textAlign: 'center',
-    },
-    feedbackEdge: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      borderWidth: 7,
     },
   });
