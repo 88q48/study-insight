@@ -114,6 +114,10 @@ python -m http.server 8080
 
 ---
 
+## 队友同步
+
+今天（2026-10-24）动过哪些地方、pull 之后要注意什么，见 [`docs/team-sync-1024.md`](docs/team-sync-1024.md)。
+
 ## 跑起来之前（后端）
 
 ```bash
