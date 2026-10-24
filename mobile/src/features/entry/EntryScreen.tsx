@@ -710,7 +710,7 @@ const makeStyles = (colors: AppColors) =>
       paddingVertical: 10,
       paddingHorizontal: 14,
       borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.08)',
+      backgroundColor: colors.surfaceMuted,
     },
     queueText: {
       fontSize: 13,

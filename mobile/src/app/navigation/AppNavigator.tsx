@@ -77,6 +77,8 @@ function SwipeableTab({
   const isFocused = useIsFocused();
   const fade = useRef(new Animated.Value(0)).current;
 
+  // 260ms 是试出来的：170ms 像被弹出来，360ms 又让人等。
+  // 缓动用 cubic 起步快收尾慢，位移配合一点点缩放，观感比纯淡入柔和。
   useEffect(() => {
     if (!isFocused) {
       return;
@@ -84,7 +86,7 @@ function SwipeableTab({
     fade.setValue(0);
     Animated.timing(fade, {
       toValue: 1,
-      duration: 170,
+      duration: 260,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -92,13 +94,21 @@ function SwipeableTab({
 
   const rise = fade.interpolate({
     inputRange: [0, 1],
-    outputRange: [8, 0],
+    outputRange: [12, 0],
+  });
+
+  const scale = fade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.985, 1],
   });
 
   return (
     <View style={styles.swipeArea} {...panResponder.panHandlers}>
       <Animated.View
-        style={[styles.swipeInner, {opacity: fade, transform: [{translateY: rise}]}]}>
+        style={[
+          styles.swipeInner,
+          {opacity: fade, transform: [{translateY: rise}, {scale}]},
+        ]}>
         {children}
       </Animated.View>
     </View>

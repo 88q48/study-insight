@@ -13,6 +13,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { launchImageLibrary } from 'react-native-image-picker';
+
 import { fetchAnalysis } from '../../shared/api/client';
 import type { Analysis } from '../../shared/api/types';
 import { ANALYSIS_DAYS } from '../../shared/config';
@@ -20,6 +22,8 @@ import { openUsageAccessSettings } from '../../shared/native/usageStats';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
 import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
+import { useAccount } from '../../shared/auth/useAccount';
+import { Avatar } from '../../shared/ui/Avatar';
 import { GlassPanel, GlassSegmented } from '../../shared/ui/Glass';
 import type { GlassSegmentOption } from '../../shared/ui/Glass';
 import { syncUsageStats } from '../../shared/usage/sync';
@@ -56,6 +60,7 @@ export default function ProfileScreen() {
   const {width} = useWindowDimensions();
   const chartWidth = Math.max(240, width - 76);
 
+  const { account, updateAvatar, isDemo } = useAccount();
   const { flags } = useFeatureFlags();
   const tabOptions = useMemo<readonly GlassSegmentOption<ProfileTab>[]>(
     () =>
@@ -131,6 +136,19 @@ export default function ProfileScreen() {
     return () => subscription.remove();
   }, [refreshData]);
 
+  const pickAvatar = useCallback(async () => {
+    const response = await launchImageLibrary({
+      mediaType: 'photo',
+      maxWidth: 512,
+      maxHeight: 512,
+      quality: 0.8 as const,
+    });
+    const uri = response.assets?.[0]?.uri;
+    if (uri) {
+      await updateAvatar(uri);
+    }
+  }, [updateAvatar]);
+
   const stats = analysis?.error_stats;
   const total = stats?.total_errors ?? 0;
   const mastered = stats?.mastered_errors ?? 0;
@@ -181,6 +199,43 @@ export default function ProfileScreen() {
               : '把错题和薄弱点，放在同一张学习地图上。'}
           </Text>
       </View>
+
+      {/* 账号卡片。点头像就能换，不用专门跑一趟设置页。 */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => {
+          if (!isDemo) {
+            void pickAvatar();
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="更换头像">
+        <GlassPanel radius={26} contentStyle={styles.accountCard}>
+          <Avatar
+            name={account?.name ?? '?'}
+            uri={account?.avatarUri}
+            size={54}
+            ring
+          />
+          <View style={styles.accountInfo}>
+            <Text style={styles.accountName}>
+              {account?.name ?? '未登录'}
+              {isDemo ? ' · 只读' : ''}
+            </Text>
+            <Text style={styles.accountMeta}>
+              {isDemo
+                ? '示例数据，不会影响你自己的记录'
+                : account
+                ? `已使用 ${Math.max(
+                    1,
+                    Math.floor((Date.now() - account.createdAt) / 86400000) + 1,
+                  )} 天 · 数据存在这台手机`
+                : ''}
+            </Text>
+          </View>
+          {!isDemo ? <Text style={styles.accountAction}>换头像</Text> : null}
+        </GlassPanel>
+      </TouchableOpacity>
 
       {!analysis ? (
         <GlassPanel radius={28} contentStyle={styles.stateCard}>
@@ -405,6 +460,29 @@ function makeStyles(colors: AppColors) {
     scroll: {flex: 1, zIndex: 1, backgroundColor: 'transparent'},
     content: {paddingHorizontal: 20},
     pageHeader: {marginBottom: 20},
+    accountCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 16,
+    },
+    accountInfo: {flex: 1},
+    accountName: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    accountMeta: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.textMuted,
+    },
+    accountAction: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
     kicker: {
       fontSize: 13,
       color: colors.textMuted,

@@ -10,7 +10,8 @@ import {
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAppColors } from '../../shared/theme/colors';
+import { useAppColors, useTheme } from '../../shared/theme/colors';
+import type { ThemeMode } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
 import {
   useWallpaper,
@@ -20,11 +21,18 @@ import {
 import type { WallpaperId } from '../../shared/theme/Wallpaper';
 import { GlassChip, GlassPanel } from '../../shared/ui/Glass';
 import { listAccounts } from '../../shared/auth/accounts';
+import { Avatar } from '../../shared/ui/Avatar';
 import { useAccount } from '../../shared/auth/useAccount';
 import { FEATURES } from '../../shared/settings/features';
 import { useFeatureFlags } from '../../shared/settings/useFeatureFlags';
 
 const OPACITY_OPTIONS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+const THEME_OPTIONS: {label: string; value: ThemeMode}[] = [
+  {label: '跟随壁纸', value: 'auto'},
+  {label: '深色', value: 'dark'},
+  {label: '浅色', value: 'light'},
+];
 
 export default function SettingsScreen() {
   const colors = useAppColors();
@@ -38,7 +46,9 @@ export default function SettingsScreen() {
     setCustomWallpaper,
     setOpacity,
   } = useWallpaper();
-  const { account, isDemo, logout, enterDemo, switchTo } = useAccount();
+  const { account, isDemo, logout, enterDemo, switchTo, updateAvatar } =
+    useAccount();
+  const theme = useTheme();
   const [switching, setSwitching] = useState(false);
   const { flags, setFlag } = useFeatureFlags();
   const [picking, setPicking] = useState(false);
@@ -70,6 +80,22 @@ export default function SettingsScreen() {
       Alert.alert('无法选择图片', '调用相册失败，请稍后重试');
     } finally {
       setPicking(false);
+    }
+  };
+
+  const changeAvatar = async () => {
+    if (isDemo) {
+      return;
+    }
+    const response = await launchImageLibrary({
+      mediaType: 'photo',
+      maxWidth: 512,
+      maxHeight: 512,
+      quality: 0.8 as const,
+    });
+    const uri = response.assets?.[0]?.uri;
+    if (uri) {
+      await updateAvatar(uri);
     }
   };
 
@@ -116,9 +142,18 @@ export default function SettingsScreen() {
   };
 
   const chooseWallpaper = (id: WallpaperId) => {
-    if (id === 'custom' && !customUri) {
-      void chooseCustomImage();
-      return;
+    if (id === 'custom') {
+      // 已经在用自定义图时，再点一次就是「换一张」。
+      // 原来这里直接 setWallpaper('custom')，等于什么都没发生，
+      // 选了图之后再也换不了。
+      if (wallpaperId === 'custom') {
+        void chooseCustomImage();
+        return;
+      }
+      if (!customUri) {
+        void chooseCustomImage();
+        return;
+      }
     }
     setWallpaper(id);
   };
@@ -148,12 +183,32 @@ export default function SettingsScreen() {
       </View>
       <GlassPanel radius={26} contentStyle={styles.accountCard}>
         <View style={styles.accountRow}>
-          <Text style={styles.accountLabel}>当前账户</Text>
-          <Text style={styles.accountValue}>
-            {account?.name ?? '未登录'}
-            {isDemo ? ' · 只读' : ''}
-          </Text>
+          <Avatar
+            name={account?.name ?? '?'}
+            uri={account?.avatarUri}
+            size={44}
+            ring
+          />
+          <View style={styles.accountText}>
+            <Text style={styles.accountValue}>
+              {account?.name ?? '未登录'}
+              {isDemo ? ' · 只读' : ''}
+            </Text>
+            <Text style={styles.accountLabel}>
+              {isDemo ? '示例数据' : '数据存在这台手机'}
+            </Text>
+          </View>
         </View>
+        {!isDemo ? (
+          <Pressable
+            onPress={changeAvatar}
+            style={({pressed}) => [
+              styles.accountAction,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.accountActionQuiet}>更换头像</Text>
+          </Pressable>
+        ) : null}
         {isDemo ? (
           <Pressable
             onPress={backToMine}
@@ -283,7 +338,33 @@ export default function SettingsScreen() {
           />
         </View>
         <Text style={styles.opacityHint}>
-          卡片仍保持灰色，透明度只影响主页背景，不影响文字可读性。
+          只影响背景可见度。卡片颜色会跟着主题走，文字始终和背景反色。
+        </Text>
+      </GlassPanel>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>主题</Text>
+        <Text style={styles.sectionHint}>
+          {theme ? (theme.resolved === 'light' ? '当前浅色' : '当前深色') : ''}
+        </Text>
+      </View>
+      <GlassPanel radius={24} contentStyle={styles.themeCard}>
+        <View style={styles.opacityChips}>
+          {THEME_OPTIONS.map(option => (
+            <GlassChip
+              key={option.value}
+              label={option.label}
+              active={theme?.mode === option.value}
+              onPress={() => theme?.setMode(option.value)}
+              accessibilityLabel={`主题 ${option.label}`}
+              style={styles.opacityChip}
+            />
+          ))}
+        </View>
+        <Text style={styles.opacityHint}>
+          {theme?.mode === 'auto'
+            ? '背景深就用浅色字，背景浅就用深色字，自动反色。'
+            : '已固定，不随壁纸变化。选「跟随壁纸」可恢复自动反色。'}
         </Text>
       </GlassPanel>
 
@@ -555,17 +636,23 @@ const makeStyles = (colors: AppColors) =>
     accountRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      gap: 14,
       paddingHorizontal: 18,
       paddingVertical: 16,
     },
+    accountText: {flex: 1},
     accountLabel: {
+      marginTop: 3,
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    accountActionQuiet: {
       fontSize: 14,
       color: colors.textSecondary,
     },
     accountValue: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 15,
+      fontWeight: '700',
       color: colors.text,
     },
     accountAction: {
@@ -578,6 +665,7 @@ const makeStyles = (colors: AppColors) =>
       fontSize: 14,
       color: colors.danger,
     },
+    themeCard: {padding: 16},
     demoCard: {padding: 18},
     demoHint: {
       fontSize: 12,

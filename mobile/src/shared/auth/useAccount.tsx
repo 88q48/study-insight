@@ -14,6 +14,7 @@ import {
   getAccount,
   getLastAccount,
   registerAccount,
+  setAccountAvatar,
   setLastAccount,
   verifyAccount,
 } from './accounts';
@@ -45,6 +46,8 @@ interface AccountContextValue {
   enterDemo: () => Promise<void>;
   /** 从示例账户回到指定账户 */
   switchTo: (id: string) => Promise<void>;
+  /** 换当前账户的头像 */
+  updateAvatar: (uri: string) => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextValue | null>(null);
@@ -118,6 +121,19 @@ export function AccountProvider({children}: {children: React.ReactNode}) {
     setAccount(demo);
   }, []);
 
+  const updateAvatar = useCallback(
+    async (uri: string) => {
+      if (!account) {
+        return;
+      }
+      const next = await setAccountAvatar(account.id, uri);
+      if (next) {
+        setAccount(next);
+      }
+    },
+    [account],
+  );
+
   const switchTo = useCallback(async (id: string) => {
     const target = await getAccount(id);
     if (!target) {
@@ -137,8 +153,18 @@ export function AccountProvider({children}: {children: React.ReactNode}) {
       logout,
       enterDemo,
       switchTo,
+      updateAvatar,
     }),
-    [account, loading, register, login, logout, enterDemo, switchTo],
+    [
+      account,
+      loading,
+      register,
+      login,
+      logout,
+      enterDemo,
+      switchTo,
+      updateAvatar,
+    ],
   );
 
   return (

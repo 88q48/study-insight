@@ -24,6 +24,8 @@ export interface Account {
   hash: string;
   createdAt: number;
   isDemo?: boolean;
+  /** 头像的本地图片 uri。空表示还没设，界面上显示名字首字。 */
+  avatarUri?: string;
 }
 
 interface AccountStore {
@@ -248,6 +250,26 @@ export async function enterDemoAccount(): Promise<Account> {
   store.lastId = DEMO_ACCOUNT_ID;
   await saveStore(store);
   return demo;
+}
+
+/**
+ * 更新头像。
+ *
+ * 图片只存 uri，不搬文件——相册里的图会一直有效，用户删掉那张图时
+ * 头像会退回名字首字，这个降级是能接受的。
+ */
+export async function setAccountAvatar(
+  id: string,
+  avatarUri: string,
+): Promise<Account | null> {
+  const store = await loadStore();
+  const target = store.accounts.find(item => item.id === id);
+  if (!target) {
+    return null;
+  }
+  target.avatarUri = avatarUri;
+  await saveStore(store);
+  return target;
 }
 
 /** 记下当前账户（切账户时用，不校验密码）。 */

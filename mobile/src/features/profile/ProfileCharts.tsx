@@ -9,17 +9,24 @@ import type {
   ReviewTrendPoint,
   SubjectDistributionItem,
 } from '../../shared/api/types';
-import { useAppColors } from '../../shared/theme/colors';
+import { useAppColors, useTheme } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
 
-const PIE_COLORS = [
-  '#E7E9EC',
-  '#B8BEC6',
-  '#939AA3',
-  '#6F767F',
-  '#555B63',
-  '#3A3F46',
-];
+/**
+ * 环图各扇区的颜色。
+ *
+ * 原来写死一套浅→深的灰，浅色主题下前两档几乎看不见。现在从主题
+ * 的 text 出发，按透明度递减排：深色主题从亮往暗排，浅色主题从暗
+ * 往亮排，两种背景下都能和底色分开。
+ */
+function pieColors(isLight: boolean): string[] {
+  const steps = isLight
+    ? [0.92, 0.78, 0.64, 0.5, 0.38, 0.26]
+    : [0.06, 0.2, 0.34, 0.5, 0.64, 0.8];
+  return steps.map(alpha =>
+    isLight ? `rgba(32,35,39,${alpha})` : `rgba(231,233,236,${alpha})`,
+  );
+}
 
 function shortDate(value: string): string {
   const parts = value.split('-');
@@ -91,16 +98,19 @@ export function SubjectDistributionChart({
   width,
 }: SubjectDistributionProps) {
   const colors = useAppColors();
+  // hook 必须在任何 early return 之前调用，不然渲染顺序会变
+  const theme = useTheme();
   const visible = items.filter(item => item.error_count > 0).slice(0, 6);
 
   if (!visible.length) {
     return <ChartEmpty label="还没有错题数据" />;
   }
 
+  const palette = pieColors(theme?.resolved === 'light');
   const data = visible.map((item, index) => ({
     name: item.subject,
     population: item.error_count,
-    color: PIE_COLORS[index % PIE_COLORS.length],
+    color: palette[index % palette.length],
     legendFontColor: colors.textSecondary,
     legendFontSize: 11,
   }));
@@ -123,7 +133,7 @@ export function SubjectDistributionChart({
       <View style={styles.legendGrid}>
         {visible.map((item, index) => (
           <View key={`${item.subject}-${index}`} style={styles.legendRow}>
-            <LegendDot color={PIE_COLORS[index % PIE_COLORS.length]} />
+            <LegendDot color={palette[index % palette.length]} />
             <Text
               numberOfLines={1}
               style={[styles.legendLabel, {color: colors.textSecondary}]}>

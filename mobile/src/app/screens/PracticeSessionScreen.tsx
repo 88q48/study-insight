@@ -639,19 +639,19 @@ const makeStyles = (colors: AppColors) =>
       fontSize: 30,
       lineHeight: 34,
       fontWeight: '300',
-      color: '#8B98A0',
+      color: colors.textMuted,
     },
     progressTrack: {
       flex: 1,
       height: 14,
       borderRadius: 7,
       overflow: 'hidden',
-      backgroundColor: '#2B353B',
+      backgroundColor: colors.surfaceMuted,
     },
     progressFill: {
       height: '100%',
       borderRadius: 7,
-      backgroundColor: '#8ED847',
+      backgroundColor: colors.success,
     },
     progressLabel: {
       width: 38,
@@ -1009,9 +1009,9 @@ const makeStyles = (colors: AppColors) =>
     resultPanel: {
       paddingHorizontal: 20,
       paddingTop: 16,
-      backgroundColor: '#18252B',
+      backgroundColor: colors.surfaceAlt,
       borderTopWidth: 1,
-      borderTopColor: '#29383F',
+      borderTopColor: colors.border,
       gap: 12,
     },
     resultHeader: {
@@ -1029,7 +1029,7 @@ const makeStyles = (colors: AppColors) =>
     resultBadgeText: {
       fontSize: 22,
       fontWeight: '900',
-      color: '#102015',
+      color: colors.background,
     },
     resultHeaderCopy: {flex: 1},
     resultTitle: {

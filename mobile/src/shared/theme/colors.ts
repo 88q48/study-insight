@@ -1,3 +1,5 @@
+import { createContext, useContext } from 'react';
+
 export interface AppColors {
   background: string;
   surface: string;
@@ -32,11 +34,12 @@ export interface AppColors {
  */
 export const lightColors: AppColors = {
   background: '#EDEFF2',
-  surface: 'rgba(255,255,255,0.58)',
-  surfaceAlt: '#E7E9ED',
-  surfaceMuted: 'rgba(255,255,255,0.34)',
-  border: 'rgba(255,255,255,0.72)',
-  borderStrong: 'rgba(173,179,188,0.44)',
+  // 白底上白卡片会糊成一片，加厚一点并配深色描边才分得开
+  surface: 'rgba(255,255,255,0.82)',
+  surfaceAlt: '#E3E6EA',
+  surfaceMuted: 'rgba(32,35,39,0.05)',
+  border: 'rgba(32,35,39,0.1)',
+  borderStrong: 'rgba(32,35,39,0.18)',
   text: '#202327',
   textSecondary: '#555B63',
   textMuted: '#8B9199',
@@ -51,12 +54,12 @@ export const lightColors: AppColors = {
   dangerSoft: 'rgba(180,84,84,0.12)',
   shadow: '#5C626B',
   placeholder: '#9DA3AA',
-  dock: 'rgba(255,255,255,0.56)',
-  glass: 'rgba(255,255,255,0.52)',
-  glassStrong: 'rgba(255,255,255,0.78)',
-  glassBorder: 'rgba(255,255,255,0.82)',
-  glassHighlight: 'rgba(255,255,255,0.72)',
-  glassEdge: 'rgba(255,255,255,0.92)',
+  dock: 'rgba(248,249,251,0.86)',
+  glass: 'rgba(255,255,255,0.68)',
+  glassStrong: 'rgba(255,255,255,0.9)',
+  glassBorder: 'rgba(32,35,39,0.12)',
+  glassHighlight: 'rgba(255,255,255,0.96)',
+  glassEdge: 'rgba(255,255,255,1)',
 };
 
 /**
@@ -93,7 +96,35 @@ export const darkColors: AppColors = {
   glassEdge: 'rgba(255,255,255,0.24)',
 };
 
+/** 主题模式：auto 跟着壁纸走，dark/light 由用户决定。 */
+export type ThemeMode = 'auto' | 'dark' | 'light';
+
+/** 实际渲染出来的是深还是浅。auto 时由壁纸亮度决定。 */
+export type ResolvedTheme = 'dark' | 'light';
+
+export interface ThemeContextValue {
+  mode: ThemeMode;
+  resolved: ResolvedTheme;
+  colors: AppColors;
+  setMode: (mode: ThemeMode) => void;
+  /** 壁纸太亮时 auto 会切浅色，这里给设置页显示判断依据 */
+  wallpaperLuminance: number;
+}
+
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+/**
+ * 取当前主题色。
+ *
+ * 没套 Provider 时退回深色——组件漏包不会白屏，只是不跟随主题。
+ * 这样调试单个页面时不用每次都补 Provider。
+ */
 export function useAppColors(): AppColors {
-  // 产品默认固定深色主题，不读取系统外观。
-  return darkColors;
+  const value = useContext(ThemeContext);
+  return value ? value.colors : darkColors;
+}
+
+/** 需要知道当前是深还是浅时用这个（比如状态栏文字颜色）。 */
+export function useTheme(): ThemeContextValue | null {
+  return useContext(ThemeContext);
 }
