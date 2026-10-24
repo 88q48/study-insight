@@ -10,26 +10,39 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method || 'GET',
-    headers: {'Content-Type': 'application/json'},
-    body: options.body,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
-  const text = await response.text();
-  let body: any = null;
   try {
-    body = text ? JSON.parse(text) : null;
-  } catch {
-    body = text;
-  }
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method || 'GET',
+      headers: {'Content-Type': 'application/json'},
+      body: options.body,
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const detail =
-      (body && (body.detail || body.message)) || text || `HTTP ${response.status}`;
-    throw new Error(String(detail));
+    const text = await response.text();
+    let body: any = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = text;
+    }
+
+    if (!response.ok) {
+      const detail =
+        (body && (body.detail || body.message)) || text || `HTTP ${response.status}`;
+      throw new Error(String(detail));
+    }
+    return body as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('请求超时，请确认后端服务已启动');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return body as T;
 }
 
 export function fetchErrors(limit = 50): Promise<{total: number; items: ErrorItem[]}> {
