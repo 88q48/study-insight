@@ -32,12 +32,25 @@ import {
   WeakPointBars,
 } from './ProfileCharts';
 
+/**
+ * 「专注效率」要 Android 的「使用情况访问」权限，那得手动去系统设置里开，
+ * 演示现场没法保证授权，所以先把这个 tab 关掉。
+ *
+ * 原生模块、sync、后端表都还留着，这只是界面开关。
+ * 要恢复就改成 true，别的地方都不用动。
+ */
+const SHOW_FOCUS_TAB = false;
+
 type ProfileTab = 'errors' | 'focus';
 
-const TAB_OPTIONS: readonly GlassSegmentOption<ProfileTab>[] = [
+const ALL_TABS: readonly GlassSegmentOption<ProfileTab>[] = [
   {value: 'errors', label: '错题诊断'},
   {value: 'focus', label: '专注效率'},
 ];
+
+const TAB_OPTIONS: readonly GlassSegmentOption<ProfileTab>[] = SHOW_FOCUS_TAB
+  ? ALL_TABS
+  : ALL_TABS.filter(item => item.value !== 'focus');
 
 function formatPeriodDate(value?: string): string {
   if (!value) {
@@ -91,13 +104,15 @@ export default function ProfileScreen() {
         setRefreshing(true);
       }
       try {
-        const result = await syncUsageStats();
-        if (result.status === 'permission_denied') {
-          setUsageAccess('denied');
-        } else if (result.status === 'unsupported') {
-          setUsageAccess('unsupported');
-        } else {
-          setUsageAccess('granted');
+        if (SHOW_FOCUS_TAB) {
+          const result = await syncUsageStats();
+          if (result.status === 'permission_denied') {
+            setUsageAccess('denied');
+          } else if (result.status === 'unsupported') {
+            setUsageAccess('unsupported');
+          } else {
+            setUsageAccess('granted');
+          }
         }
       } finally {
         syncingRef.current = false;
@@ -166,7 +181,11 @@ export default function ProfileScreen() {
       <View style={styles.pageHeader}>
         <Text style={styles.kicker}>学习档案 · 最近 {ANALYSIS_DAYS} 天</Text>
         <Text style={styles.title}>我的</Text>
-        <Text style={styles.subtitle}>错题和专注，放在同一张学习地图上。</Text>
+        <Text style={styles.subtitle}>
+            {SHOW_FOCUS_TAB
+              ? '错题和专注，放在同一张学习地图上。'
+              : '把错题和薄弱点，放在同一张学习地图上。'}
+          </Text>
       </View>
 
       {!analysis ? (
@@ -263,7 +282,7 @@ export default function ProfileScreen() {
             </View>
           </GlassPanel>
 
-          {usageAccess === 'denied' ? (
+          {SHOW_FOCUS_TAB && usageAccess === 'denied' ? (
             <GlassPanel
               radius={22}
               style={styles.permissionCard}
@@ -287,12 +306,14 @@ export default function ProfileScreen() {
             </GlassPanel>
           ) : null}
 
-          <GlassSegmented
-            options={TAB_OPTIONS}
-            value={tab}
-            onChange={setTab}
-            style={styles.segmented}
-          />
+          {SHOW_FOCUS_TAB ? (
+            <GlassSegmented
+              options={TAB_OPTIONS}
+              value={tab}
+              onChange={setTab}
+              style={styles.segmented}
+            />
+          ) : null}
 
           {tab === 'errors' ? (
             <>

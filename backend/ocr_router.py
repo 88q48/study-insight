@@ -164,6 +164,30 @@ def parse_with_llm(text: str):
         return None
 
 
+def _strip_options_from_stem(one: dict) -> dict:
+    """选项已经单独拆出来了，题干里就别再重复一遍。
+
+    大模型返回的 question_content 常把 A/B/C/D 一起塞进来。客户端存题时
+    选项是分开的（option_a..d），题干里再带一份，看题时就成了两遍。
+    """
+    options = one.get("options") or {}
+    content = one.get("question_content") or ""
+    if len(options) < 4 or not content:
+        return one
+
+    _opts, span = ocr_parser._extract_options(content)
+    if not span:
+        return one
+
+    start, end = span
+    tail = content[end:]
+    tail = tail.split(chr(10), 1)[1] if chr(10) in tail else ""
+    stem = (content[:start] + (chr(10) + tail if tail.strip() else "")).strip()
+    if stem:
+        one["question_content"] = stem
+    return one
+
+
 def _structure_one(block: str, fallback_text: str) -> dict:
     """把一道题的文本整理成填表字段。
 
@@ -185,14 +209,14 @@ def _structure_one(block: str, fallback_text: str) -> dict:
                 if val:
                     merged[key] = val
             merged["parser"] = "llm"
-            return merged
+            return _strip_options_from_stem(merged)
 
     out = dict(local)
     out["parser"] = "local"
     # 本地切不出题干时，至少把这段原文给出去，别让用户面对空白
     if not out.get("question_content"):
         out["question_content"] = block.strip() or fallback_text
-    return out
+    return _strip_options_from_stem(out)
 
 
 @router.post("/parse")

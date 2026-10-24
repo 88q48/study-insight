@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +23,7 @@ import TextRecognition, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createError, parseOcrImage } from '../../shared/api/client';
+import type { OcrQuestion } from '../../shared/api/client';
 import type { QuestionType } from '../../shared/api/types';
 import { CHOICE_KEYS } from '../../shared/domain/error';
 import type { ChoiceKey } from '../../shared/domain/error';
@@ -70,6 +73,15 @@ export default function EntryScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
 
+  /**
+   * 一张卷子常有好几道题。识别完先弹列表让人挑，
+   * 挑中的按顺序填：当前这道保存后自动换下一道。
+   */
+  const [pickerItems, setPickerItems] = useState<OcrQuestion[]>([]);
+  const [pickedIndexes, setPickedIndexes] = useState<Set<number>>(new Set());
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [queue, setQueue] = useState<OcrQuestion[]>([]);
+
   const updateOption = (key: ChoiceKey, value: string) => {
     setOptions(current => ({...current, [key]: value}));
   };
@@ -79,6 +91,58 @@ export default function EntryScreen() {
     if (!KNOWLEDGE_POINTS[nextSubject]?.includes(knowledgePoint)) {
       setKnowledgePoint('');
     }
+  };
+
+  /** 把一道识别结果填进表单。选择题会连同选项和正确答案一起填好。 */
+  const applyQuestion = (item: OcrQuestion) => {
+    setQuestion((item.question_content || '').trim());
+    setAnswer((item.answer || '').trim());
+
+    const nextOptions: Record<ChoiceKey, string> = {A: '', B: '', C: '', D: ''};
+    for (const key of CHOICE_KEYS) {
+      const value = item.options?.[key];
+      if (value) {
+        nextOptions[key] = value.trim();
+      }
+    }
+    setOptions(nextOptions);
+
+    const hasOptions = CHOICE_KEYS.some(key => nextOptions[key].length > 0);
+    const isChoice = Boolean(item.question_type?.includes('选择')) || hasOptions;
+    setQuestionType(isChoice ? 'choice' : 'fill');
+
+    const answerLetter = (item.answer || '').trim().toUpperCase();
+    const matchedKey = CHOICE_KEYS.find(key => key === answerLetter);
+    setCorrectOption(isChoice && matchedKey ? matchedKey : null);
+
+    const matchedSubject = SUBJECT_OPTIONS.find(name =>
+      item.subject?.includes(name),
+    );
+    if (matchedSubject) {
+      handleSubjectChange(matchedSubject);
+    }
+  };
+
+  const togglePick = (index: number) => {
+    setPickedIndexes(current => {
+      const next = new Set(current);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const confirmPick = () => {
+    const chosen = pickerItems.filter((_, index) => pickedIndexes.has(index));
+    setPickerVisible(false);
+    if (!chosen.length) {
+      return;
+    }
+    applyQuestion(chosen[0]);
+    setQueue(chosen.slice(1));
   };
 
   const handleOCR = () => {
@@ -129,24 +193,41 @@ export default function EntryScreen() {
       // 优先走后端云端 OCR（百度 OCR + DeepSeek 结构化），
       // 后端不可用时再退回手机本地的 ML Kit，保证离线也能录题。
       const cloud = await parseOcrImage(imageUri);
-      const text = (cloud.question_content || cloud.raw_text || '').trim();
-      if (!text) {
+
+      // 后端会把整页切成多道题。老后端没有 questions 字段，
+      // 这时把顶层那几个字段当成唯一一道，行为跟以前一样。
+      const fromCloud: OcrQuestion[] =
+        cloud.questions && cloud.questions.length
+          ? cloud.questions
+          : [
+              {
+                index: 1,
+                subject: cloud.subject || '',
+                question_type: cloud.question_type || '',
+                question_content: cloud.question_content || cloud.raw_text || '',
+                answer: cloud.answer || '',
+                parser: cloud.parser,
+              },
+            ];
+
+      const detected = fromCloud.filter(
+        item => (item.question_content || '').trim().length > 0,
+      );
+      if (!detected.length) {
         throw new Error('没有识别到文字，请换个角度再拍一张。');
       }
-      setQuestion(text);
-      if (cloud.answer?.trim()) {
-        setAnswer(cloud.answer.trim());
+
+      if (detected.length === 1) {
+        applyQuestion(detected[0]);
+        setQueue([]);
+        Alert.alert('识别完成', '题目已填入，请核对科目和知识点后保存。');
+        return;
       }
-      const matchedSubject = SUBJECT_OPTIONS.find(item =>
-        cloud.subject?.includes(item),
-      );
-      if (matchedSubject) {
-        handleSubjectChange(matchedSubject);
-      }
-      Alert.alert(
-        '云端识别完成',
-        '题目已填入，请核对科目和知识点后保存。',
-      );
+
+      // 多题：先挑，别直接拿第一道就覆盖掉。
+      setPickerItems(detected);
+      setPickedIndexes(new Set(detected.map((_, index) => index)));
+      setPickerVisible(true);
     } catch {
       try {
         const result = await TextRecognition.recognize(
@@ -206,6 +287,21 @@ export default function EntryScreen() {
 
     try {
       const result = await createError(payload);
+
+      if (queue.length) {
+        // 还有没录完的，直接换上下一道，省得重新拍照
+        const [nextItem, ...rest] = queue;
+        applyQuestion(nextItem);
+        setQueue(rest);
+        Alert.alert(
+          '已保存',
+          rest.length
+            ? `还有 ${rest.length} 道没录，下一道已经填好了。`
+            : '这是最后一道，全部录完了。',
+        );
+        return;
+      }
+
       Alert.alert('成功', result.message || '错题录入成功！');
       setSubject('');
       setKnowledgePoint('');
@@ -255,6 +351,17 @@ export default function EntryScreen() {
           disabled={isOcrLoading}
           style={styles.ocrButton}
         />
+
+        {queue.length ? (
+          <View style={styles.queueNote}>
+            <Text style={styles.queueText}>
+              还有 {queue.length} 道等着录入
+            </Text>
+            <Text style={styles.queueHint}>
+              保存当前这道后会自动换成下一道
+            </Text>
+          </View>
+        ) : null}
 
         <GlassPanel
           radius={26}
@@ -404,6 +511,75 @@ export default function EntryScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <Modal
+        visible={pickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              识别到 {pickerItems.length} 道题
+            </Text>
+            <Text style={styles.modalHint}>
+              勾选要录入的，保存一道之后会自动填下一道
+            </Text>
+
+            <ScrollView
+              style={styles.modalList}
+              showsVerticalScrollIndicator={false}>
+              {pickerItems.map((item, index) => {
+                const active = pickedIndexes.has(index);
+                return (
+                  <Pressable
+                    key={`${item.index}-${index}`}
+                    onPress={() => togglePick(index)}
+                    style={[
+                      styles.pickRow,
+                      active ? styles.pickRowActive : null,
+                    ]}>
+                    <View
+                      style={[
+                        styles.pickBox,
+                        active ? styles.pickBoxActive : null,
+                      ]}>
+                      {active ? <Text style={styles.pickTick}>✓</Text> : null}
+                    </View>
+                    <View style={styles.pickBody}>
+                      <Text style={styles.pickMeta}>
+                        第 {item.number ?? index + 1} 题 ·{' '}
+                        {item.subject || '未识别科目'} ·{' '}
+                        {item.question_type?.includes('选择') ||
+                        Object.keys(item.options || {}).length > 0
+                          ? '选择题'
+                          : '其他'}
+                        {item.answer ? ` · 答案 ${item.answer}` : ''}
+                      </Text>
+                      <Text style={styles.pickPreview} numberOfLines={2}>
+                        {(item.question_content || '').trim()}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setPickerVisible(false)}
+                style={styles.modalGhost}>
+                <Text style={styles.modalGhostText}>取消</Text>
+              </Pressable>
+              <Pressable onPress={confirmPick} style={styles.modalPrimary}>
+                <Text style={styles.modalPrimaryText}>
+                  填入选中（{pickedIndexes.size}）
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -520,5 +696,124 @@ const makeStyles = (colors: AppColors) =>
     ocrStatusText: {
       fontSize: 12,
       color: colors.textMuted,
+    },
+    queueNote: {
+      marginTop: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 14,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    queueText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    queueHint: {
+      marginTop: 2,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.62)',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+    },
+    modalCard: {
+      borderRadius: 26,
+      padding: 20,
+      backgroundColor: colors.surface,
+      maxHeight: '82%',
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    modalHint: {
+      marginTop: 6,
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    modalList: {
+      marginTop: 14,
+    },
+    pickRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      marginBottom: 8,
+    },
+    pickRowActive: {
+      borderColor: colors.primary,
+      backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    pickBox: {
+      width: 22,
+      height: 22,
+      borderRadius: 7,
+      borderWidth: 1.5,
+      borderColor: colors.textMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 2,
+    },
+    pickBoxActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
+    },
+    pickTick: {
+      fontSize: 13,
+      fontWeight: '900',
+      color: colors.background,
+    },
+    pickBody: {
+      flex: 1,
+    },
+    pickMeta: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textMuted,
+    },
+    pickPreview: {
+      marginTop: 4,
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.text,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 16,
+    },
+    modalGhost: {
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      borderRadius: 14,
+    },
+    modalGhostText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    modalPrimary: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+    },
+    modalPrimaryText: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.background,
     },
   });

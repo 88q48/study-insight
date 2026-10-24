@@ -696,3 +696,36 @@ def test_split_without_number_falls_back_to_one_question():
     questions, _ = ocr_split.parse_many(text)
     assert len(questions) == 1
     assert "f(2)" in questions[0]["question_content"]
+
+
+def test_options_recognized_when_ocr_eats_spaces():
+    """百度 OCR 常把选项间的空格全吃掉，压成「A.-1B.0C.3D.4」。
+
+    严格的正则要求字母前有空白，这种一个都认不出来，真实的试卷图片
+    就是这么回来的，所以留了一条宽松规则。
+    """
+    import ocr_parser
+
+    options, span = ocr_parser._extract_options("A.-1B.0C.3D.4")
+    assert options == {"A": "-1", "B": "0", "C": "3", "D": "4"}
+    assert span is not None
+
+
+def test_loose_options_do_not_fire_on_geometry_text():
+    """「A、B 两点」不能被当成选项。"""
+    import ocr_parser
+
+    options, _span = ocr_parser._extract_options("A、B 两点，求 AB 距离。")
+    assert options == {}
+
+
+def test_parse_options_and_stem_stay_separate():
+    """选项拆出来之后，题干里不该再重复一遍。"""
+    import ocr_router
+
+    one = ocr_router._structure_one(
+        "7.已知函数f(x)=x2-4x+3,则fx)在区间[0,3]上的最小值为（)\nA.-1B.0C.3D.4",
+        "",
+    )
+    assert one["options"] == {"A": "-1", "B": "0", "C": "3", "D": "4"}
+    assert "A.-1" not in one["question_content"].replace(" ", "")

@@ -240,15 +240,42 @@ def _classify_knowledge_point(text: str, subject: str) -> str:
 
 _OPTION_MARK = re.compile(r"(?:^|\n|\s)([ABCD])\s*[.．、:：)）]\s*", re.MULTILINE)
 
+# 同上，但字母前面不要求空白。OCR 常把空格全吃掉，变成「A.-1B.0C.3D.4」，
+# 严格规则一个都认不出来，所以留一条退路（只在严格规则失败时才用）。
+_OPTION_MARK_LOOSE = re.compile("([ABCD])\s*[.．、:：)）]\s*")
+
 
 def _extract_options(text: str) -> tuple[dict[str, str], tuple[int, int] | None]:
     """抽出 A/B/C/D 四个选项。
 
     题干里也常出现「A、B 两点」，所以只认字母严格递增、且四段内容都不空的
     那一组，从后往前找（真选项通常在文本靠后的位置）。
-    """
-    marks = [(m.group(1), m.start(), m.end()) for m in _OPTION_MARK.finditer(text)]
 
+    先按「字母前要有空白或换行」这个严格规则找；找不到再放宽 ——
+    百度 OCR 经常把选项间的空格全吃掉，压成「A.-1B.0C.3D.4」，
+    严格规则一个都认不出来，但确实是四个选项。
+    """
+    strict = [(m.group(1), m.start(), m.end()) for m in _OPTION_MARK.finditer(text)]
+    found = _pick_option_run(text, strict)
+    if found:
+        return found
+
+    loose = [
+        (m.group(1), m.start(), m.end())
+        for m in _OPTION_MARK_LOOSE.finditer(text)
+    ]
+    found = _pick_option_run(text, loose)
+    if found:
+        return found
+
+    return {}, None
+
+
+def _pick_option_run(text: str, marks):
+    """从候选标记里挑一组 A→B→C→D 且每段都有内容的。
+
+    返回 (选项字典, 首尾位置) 或 None。
+    """
     runs: list[list[tuple[str, int, int]]] = []
     current: list[tuple[str, int, int]] = []
     expected = "A"
@@ -276,7 +303,10 @@ def _extract_options(text: str) -> tuple[dict[str, str], tuple[int, int] | None]
             body = text[end:stop].strip()
             if idx == 3:
                 # D 之后的内容可能是答案段，切掉
-                body = re.split(r"\n(?=【|答案|解析|详解)", body)[0].strip()
+                for marker in ("【", "答案", "解析", "详解"):
+                    pos = body.find(chr(10) + marker)
+                    if pos >= 0:
+                        body = body[:pos].strip()
             if not body or len(body) > 300:
                 ok = False
                 break
@@ -284,7 +314,7 @@ def _extract_options(text: str) -> tuple[dict[str, str], tuple[int, int] | None]
         if ok and len(options) == 4:
             return options, (run[0][1], run[-1][2])
 
-    return {}, None
+    return None
 
 
 # ---------------------------------------------------------------- 题干 / 答案

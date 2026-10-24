@@ -122,7 +122,27 @@ export function deleteError(errorId: string) {
   );
 }
 
-/** 云端 OCR 返回结构（后端 /api/v1/ocr/parse）。 */
+/** 云端 OCR 切出来的一道题。 */
+export interface OcrQuestion {
+  /** 在本次返回里的顺序，从 1 开始 */
+  index: number;
+  /** 卷面上的题号。一页只拍第 7 题起，这里就是 7 */
+  number?: number;
+  subject: string;
+  question_type: string;
+  question_content: string;
+  answer: string;
+  options?: Record<string, string>;
+  knowledge_point?: string;
+  parser: 'llm' | 'local' | string;
+}
+
+/**
+ * 云端 OCR 返回结构（后端 /api/v1/ocr/parse）。
+ *
+ * 一张卷子拍进去会切出多道题，看 questions；顶层那几个字段是第一题的副本，
+ * 兼容只认单个题目的老调用方。
+ */
 export interface OcrParseResult {
   raw_text: string;
   subject: string;
@@ -130,6 +150,11 @@ export interface OcrParseResult {
   question_content: string;
   answer: string;
   parser: 'llm' | 'local' | string;
+  /** 切出来的所有题，按卷面顺序 */
+  questions?: OcrQuestion[];
+  question_count?: number;
+  /** 卷头（如「数学高三第一次模拟考」），用来猜科目 */
+  header?: string;
 }
 
 export async function parseOcrImage(imageUri: string): Promise<OcrParseResult> {
