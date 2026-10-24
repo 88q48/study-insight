@@ -1,5 +1,6 @@
 import type { ErrorItem, UsageEventUpload } from '../api/types';
 import { readPreference, writePreference } from '../storage/preferences';
+import seed from '../api/offlineSeed.json';
 
 /**
  * 手机端本地数据库。
@@ -27,8 +28,29 @@ let cache: LocalDbState | null = null;
 let loading: Promise<LocalDbState> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 
+/**
+ * 第一次打开（本地还什么都没存）时铺进去的错题。
+ *
+ * 数据来自真实后端的一份快照，见 src/shared/api/offlineSeed.json。
+ * 没有这份数据，新装完打开就是「0 道错题 / 掌握率 0%」，练习也抽不出题，
+ * 演示和录屏都无从下手。重新导出：cd backend && python export_seed.py
+ */
+function seededErrors(): ErrorItem[] {
+  const items = (seed as {errors?: {items?: unknown}}).errors?.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items.filter(
+    (item): item is ErrorItem =>
+      Boolean(item) &&
+      typeof item === 'object' &&
+      typeof (item as ErrorItem).error_id === 'string' &&
+      typeof (item as ErrorItem).content === 'string',
+  ).map(cloneError);
+}
+
 function emptyState(): LocalDbState {
-  return {version: 1, errors: [], events: []};
+  return {version: 1, errors: seededErrors(), events: []};
 }
 
 function cloneError(item: ErrorItem): ErrorItem {

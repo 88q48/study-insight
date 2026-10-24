@@ -39,7 +39,7 @@ import {
  * 原生模块、sync、后端表都还留着，这只是界面开关。
  * 要恢复就改成 true，别的地方都不用动。
  */
-const SHOW_FOCUS_TAB = true;
+const SHOW_FOCUS_TAB = false;
 
 type ProfileTab = 'errors' | 'focus';
 

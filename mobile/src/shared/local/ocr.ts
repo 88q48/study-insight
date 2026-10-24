@@ -9,8 +9,13 @@ import type { QuestionType } from '../api/types';
  * 这里不经过电脑后端，APK 在手机上可独立完成拍照录题。
  * 注意：百度密钥会被打进 APK，正式发布时应改为自己的受限凭据。
  */
-const BAIDU_OCR_API_KEY = 'yOxFOsrvg6wOhJMCaHfihfvL';
-const BAIDU_OCR_SECRET_KEY = 'YOf1cPUkjArQe29wPtyHaTi3XcnkSlVd';
+import {
+  BAIDU_OCR_API_KEY,
+  BAIDU_OCR_SECRET_KEY,
+} from './ocrKeys';
+
+/** 没配密钥时跳过百度，直接让调用方退回手机本地识别。 */
+const hasBaiduKeys = Boolean(BAIDU_OCR_API_KEY && BAIDU_OCR_SECRET_KEY);
 
 const TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token';
 const OCR_URL = 'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic';
@@ -174,6 +179,10 @@ async function requestBaiduOcr(
 export async function recognizeWithBaidu(
   imageBase64: string,
 ): Promise<string> {
+  if (!hasBaiduKeys) {
+    throw new Error('还没配百度 OCR 密钥，请用手机本地识别');
+  }
+
   const base64 = imageBase64
     .replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '')
     .replace(/\s+/g, '')

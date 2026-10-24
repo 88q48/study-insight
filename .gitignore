@@ -32,3 +32,6 @@ env/
 !.env.example
 *_secret.*
 secrets.json
+
+# 百度 OCR 密钥（模板见 ocrKeys.example.ts）
+mobile/src/shared/local/ocrKeys.ts
