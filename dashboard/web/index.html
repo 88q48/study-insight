@@ -11,15 +11,14 @@
 
   <header class="hero">
     <div>
-      <h1>📚 错题管理与学情诊断</h1>
+      <h1>错题管理与学情诊断</h1>
       <p class="sub" id="meta-line">正在加载…</p>
     </div>
     <div class="hero-right">
       <div class="source-controls">
         <label class="control">设备
           <select id="device-select">
-            <option value="win_device_01">win_device_01（电脑演示）</option>
-            <option value="android_emulator_01">android_emulator_01（手机）</option>
+            <option value="win_device_01">win_device_01（三端统一）</option>
           </select>
         </label>
         <label class="control">数据源
@@ -34,8 +33,8 @@
   </header>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="error" role="tab">📕 错题诊断</button>
-    <button class="tab" data-tab="focus" role="tab">⏱ 专注与效率</button>
+    <button class="tab active" data-tab="error" role="tab">错题诊断</button>
+    <button class="tab" data-tab="focus" role="tab">专注与效率</button>
   </nav>
 
   <!-- ================= Tab 1：错题诊断 ================= -->
@@ -70,12 +69,12 @@
     </div>
 
     <div class="panel">
-      <h2>🩺 诊断结论</h2>
+      <h2>诊断结论</h2>
       <ul class="tips" id="error-tips"></ul>
     </div>
 
     <div class="panel">
-      <h2>📋 今日重做清单</h2>
+      <h2>今日重做清单</h2>
       <p class="note">按错题数排序，先做第 1 条，做完再看下一条。</p>
       <div class="redo-list" id="redo-list"></div>
       <p class="note" id="redo-total"></p>
@@ -103,7 +102,7 @@
     </div>
 
     <div class="panel">
-      <h2>🩺 效率诊断</h2>
+      <h2>效率诊断</h2>
       <ul class="tips" id="focus-tips"></ul>
     </div>
   </section>
@@ -115,7 +114,6 @@
 <script src="config.js"></script>
 <script src="mock-data.js"></script>
 <script src="lib/echarts.min.js"></script>
-<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

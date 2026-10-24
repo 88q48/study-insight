@@ -116,15 +116,17 @@
   }
 
   /* ---------- 指标卡 ---------- */
-  function card(label, value) {
-    return '<div class="card"><div class="label">' + label +
+  // tone 用来区分指标语义：ok=已掌握、warn=待复习、key=核心比率
+  function card(label, value, tone) {
+    var cls = "card" + (tone ? " tone-" + tone : "");
+    return '<div class="' + cls + '"><div class="label">' + label +
            '</div><div class="value">' + value + "</div></div>";
   }
 
   function renderMetrics(elId, items) {
     var el = document.getElementById(elId);
     if (!el) { return; }
-    el.innerHTML = items.map(function (kv) { return card(kv[0], kv[1]); }).join("");
+    el.innerHTML = items.map(function (kv) { return card(kv[0], kv[1], kv[2]); }).join("");
   }
 
   function renderTips(elId, tips) {
@@ -226,40 +228,55 @@
     var err = d.error_stats;
 
     renderMetrics("error-metrics", [
-      ["累计错题", err.total_errors + " 道"],
-      ["已掌握", err.mastered_errors + " 道"],
-      ["待复习", err.reviewing_errors + " 道"],
-      ["掌握率", err.mastery_rate + "%"]
+      ["累计错题", err.total_errors + " 道", ""],
+      ["已掌握", err.mastered_errors + " 道", "ok"],
+      ["待复习", err.reviewing_errors + " 道", "warn"],
+      ["掌握率", err.mastery_rate + "%", "key"]
     ]);
 
-    // 改成真实的字段 knowledge_point_errors
-renderChart("chart-radar", window.Charts.radarError(d.knowledge_point_errors));
+    renderChart("chart-radar", window.Charts.radarError(d.subject_distribution));
     renderChart("chart-subject-mastery", window.Charts.barSubjectMastery(d.subject_distribution));
     renderChart("chart-knowledge", window.Charts.barKnowledge(d.knowledge_points, 10));
     renderChart("chart-funnel", window.Charts.funnelMastery(err));
     renderChart("chart-review", window.Charts.barReview(d.review_trend));
 
-    // 把 subject_distribution 改成 subject_errors
-    var subjects = d.subject_errors;
-    var weakest = subjects.reduce(function (a, b) {
-      return a.error_count >= b.error_count ? a : b;
-    });
-    var slowest = subjects.reduce(function (a, b) {
-      return a.mastery_rate <= b.mastery_rate ? a : b;
-    });
-    // 把 knowledge_points 改成 knowledge_point_errors
-var top = d.knowledge_point_errors[0];
+    // 字段名对齐后端正式契约：subject_distribution / knowledge_points
+    var subjects = d.subject_distribution || [];
+    var points = d.knowledge_points || [];
+    var tips = [];
 
-    renderTips("error-tips", [
-      "错题最多的是 <b>" + weakest.subject + "</b>，累计 " + weakest.error_count +
-        " 道，已掌握 " + weakest.mastered_count + " 道。",
-      "消化最慢的是 <b>" + slowest.subject + "</b>，掌握率 " + slowest.mastery_rate +
-        "%，优先安排复盘。",
-      "最薄弱的知识点是 <b>" + top.subject + " · " + top.knowledge_point + "</b>，" +
-        "错了 " + top.error_count + " 次。"
-    ]);
+    if (subjects.length) {
+      var weakest = subjects.reduce(function (a, b) {
+        return a.error_count >= b.error_count ? a : b;
+      });
+      var slowest = subjects.reduce(function (a, b) {
+        return a.mastery_rate <= b.mastery_rate ? a : b;
+      });
+      tips.push(
+        "错题最多的是 <b>" + weakest.subject + "</b>，累计 " + weakest.error_count +
+          " 道，已掌握 " + weakest.mastered_count + " 道。"
+      );
+      tips.push(
+        "消化最慢的是 <b>" + slowest.subject + "</b>，掌握率 " + slowest.mastery_rate +
+          "%，优先安排复盘。"
+      );
+    }
 
-    renderRedo(buildRedoPlan(d.knowledge_points, 5));
+    // knowledge_points 按待复习数降序，取第一条就是最该先处理的
+    if (points.length) {
+      var top = points[0];
+      tips.push(
+        "最该先处理的是 <b>" + top.subject + " · " + top.knowledge_point + "</b>，" +
+          "还有 " + top.reviewing_count + " 道没消化（累计错 " + top.error_count + " 道）。"
+      );
+    }
+
+    if (!tips.length) {
+      tips.push("还没有错题数据，先去手机端录一道题试试。");
+    }
+
+    renderTips("error-tips", tips);
+    renderRedo(buildRedoPlan(points, 5));
   }
 
   /* ---------- 渲染：专注与效率 ---------- */
@@ -268,10 +285,10 @@ var top = d.knowledge_point_errors[0];
     var s = d.summary;
 
     renderMetrics("focus-metrics", [
-      ["累计专注", fmtHours(s.total_duration_seconds)],
-      ["日均", fmtHours(s.avg_daily_seconds)],
-      ["中位数", fmtHours(s.median_daily_seconds)],
-      ["P90", fmtHours(s.p90_daily_seconds)]
+      ["累计专注", fmtHours(s.total_duration_seconds), "key"],
+      ["日均", fmtHours(s.avg_daily_seconds), ""],
+      ["中位数", fmtHours(s.median_daily_seconds), ""],
+      ["P90", fmtHours(s.p90_daily_seconds), ""]
     ]);
 
     renderChart("chart-dual", window.Charts.dualAxis(d.efficiency_trend));
