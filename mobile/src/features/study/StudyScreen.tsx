@@ -12,8 +12,12 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { fetchErrors } from '../../shared/api/client';
-import type { ErrorItem } from '../../shared/api/types';
+import {
+  fetchPracticeErrors,
+  fetchSubjects,
+  recordAttempt,
+} from '../../shared/api/client';
+import type { ErrorItem, SubjectOption } from '../../shared/api/types';
 import {
   CHOICE_KEYS,
   answerOf,
@@ -23,39 +27,143 @@ import {
 } from '../../shared/domain/error';
 
 export default function StudyScreen() {
+  const [stage, setStage] = useState<'setup' | 'quiz'>('setup');
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState('全部');
+  const [questionLimit, setQuestionLimit] = useState(10);
+  const [setupLoading, setSetupLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<ErrorItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
-  // 每次进入学习页面，重新拉取待复习错题
+  // 进入练习页时加载科目，供本次练习选择
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-      setLoading(true);
-      fetchErrors()
-        .then((result) => {
+      setSetupLoading(true);
+      fetchSubjects()
+        .then(result => {
           if (isActive) {
-            setQuestions(result.items.filter((item) => !item.mastered));
-            setCurrentIndex(0);
-            setUserAnswer('');
-            setShowResult(false);
-            setLoading(false);
+            setSubjects(result.subjects);
           }
         })
-        .catch((err) => {
+        .catch(err => {
+          console.error(err);
           if (isActive) {
-            console.error(err);
-            setLoading(false);
+            Alert.alert('提示', '科目加载失败，仍可以选择「全部」开始');
+          }
+        })
+        .finally(() => {
+          if (isActive) {
+            setSetupLoading(false);
           }
         });
-      return () => { isActive = false; };
-    }, [])
+      return () => {
+        isActive = false;
+      };
+    }, []),
   );
 
-  // 加载中状态
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      const result = await fetchPracticeErrors(
+        selectedSubject === '全部' ? undefined : selectedSubject,
+        questionLimit,
+      );
+      if (!result.items.length) {
+        Alert.alert('提示', '这个科目暂时没有可练习的错题');
+        return;
+      }
+      setQuestions(result.items);
+      setCurrentIndex(0);
+      setUserAnswer('');
+      setShowResult(false);
+      setIsCorrect(false);
+      setStage('quiz');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '无法获取练习题目';
+      Alert.alert('加载失败', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (stage === 'setup') {
+    return (
+      <View style={styles.setupContainer}>
+        <Text style={styles.setupTitle}>开始练习</Text>
+        <Text style={styles.setupHint}>选择题量和科目，优先安排错得多的题。</Text>
+
+        {setupLoading ? (
+          <ActivityIndicator size="large" color="#007AFF" style={{marginTop: 30}} />
+        ) : (
+          <>
+            <Text style={styles.sectionLabel}>科目</Text>
+            <View style={styles.chipRow}>
+              {['全部', ...subjects.map(item => item.subject)].map(subject => (
+                <TouchableOpacity
+                  key={subject}
+                  style={[
+                    styles.chip,
+                    selectedSubject === subject && styles.chipActive,
+                  ]}
+                  onPress={() => setSelectedSubject(subject)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedSubject === subject && styles.chipTextActive,
+                    ]}
+                  >
+                    {subject}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.sectionLabel}>做题数</Text>
+            <View style={styles.chipRow}>
+              {[5, 10, 20, 50].map(count => (
+                <TouchableOpacity
+                  key={count}
+                  style={[
+                    styles.chip,
+                    questionLimit === count && styles.chipActive,
+                  ]}
+                  onPress={() => setQuestionLimit(count)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      questionLimit === count && styles.chipTextActive,
+                    ]}
+                  >
+                    {count} 题
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.startBtn, loading && {opacity: 0.5}]}
+              onPress={handleStart}
+              disabled={loading}
+            >
+              <Text style={styles.btnText}>
+                {loading ? '加载中...' : '开始练习'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
+
+  // 加载题库中
   if (loading) {
     return (
       <View style={styles.center}>
@@ -65,11 +173,10 @@ export default function StudyScreen() {
     );
   }
 
-  // 没有错题的状态
   if (questions.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>🎉 太棒了，目前没有可以挑战的错题！</Text>
+        <Text style={styles.emptyText}>没有可练习的错题</Text>
       </View>
     );
   }
@@ -81,12 +188,25 @@ export default function StudyScreen() {
   const hasAnswer = correctAnswer.trim().length > 0;
   const isChoice = isChoiceQuestion(currentQ);
 
-  // 检查答案
-  const handleCheck = () => {
+  // 检查答案，并把本次结果写回后端统计
+  const handleCheck = async () => {
     const normalize = (value: string) => value.trim().toLowerCase();
     const isRight = hasAnswer && normalize(userAnswer) === normalize(correctAnswer);
     setIsCorrect(isRight);
     setShowResult(true);
+
+    try {
+      const result = await recordAttempt(currentQ.error_id, userAnswer);
+      setIsCorrect(result.correct);
+      setQuestions(current =>
+        current.map(item =>
+          item.error_id === result.error.error_id ? result.error : item,
+        ),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '请检查网络';
+      Alert.alert('统计失败', `本次做题未记录：${message}`);
+    }
   };
 
   // 下一题
@@ -96,7 +216,12 @@ export default function StudyScreen() {
       setUserAnswer('');
       setShowResult(false);
     } else {
-      Alert.alert('恭喜', '你已完成本轮所有错题复习！');
+      setStage('setup');
+      setQuestions([]);
+      setCurrentIndex(0);
+      setUserAnswer('');
+      setShowResult(false);
+      Alert.alert('恭喜', '本轮练习完成，可以重新选择科目和题量。');
     }
   };
 
@@ -110,6 +235,15 @@ export default function StudyScreen() {
         <View style={styles.tag}>
           <Text style={styles.tagText}>{currentQ.subject || '未分类'}</Text>
         </View>
+      </View>
+
+      <View style={styles.statsRow}>
+        <Text style={styles.statsText}>
+          做 {currentQ.attempt_count ?? 0} 次 · 正确率 {currentQ.accuracy ?? 0}%
+        </Text>
+        <Text style={styles.statsText}>
+          错 {currentQ.wrong_count ?? 0} 次
+        </Text>
       </View>
 
       {/* 题目区域 */}
@@ -180,7 +314,9 @@ export default function StudyScreen() {
               </Text>
             )}
             <TouchableOpacity style={styles.primaryBtn} onPress={handleNext}>
-              <Text style={styles.btnText}>下一题</Text>
+              <Text style={styles.btnText}>
+                {currentIndex < questions.length - 1 ? '下一题' : '完成本轮'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -193,6 +329,35 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa', padding: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   emptyText: { fontSize: 18, color: '#666', textAlign: 'center' },
+  setupContainer: { flex: 1, backgroundColor: '#f8f9fa', padding: 20 },
+  setupTitle: { fontSize: 24, fontWeight: 'bold', color: '#333', marginTop: 8 },
+  setupHint: { fontSize: 14, color: '#777', marginTop: 8, marginBottom: 20 },
+  sectionLabel: { fontSize: 16, fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 10 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#d9deea',
+    backgroundColor: '#fff',
+  },
+  chipActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  chipText: { fontSize: 14, color: '#555', fontWeight: '600' },
+  chipTextActive: { color: '#fff' },
+  startBtn: {
+    marginTop: 28,
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statsText: { fontSize: 12.5, color: '#777' },
   
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   progressText: { fontSize: 16, fontWeight: 'bold', color: '#333' },

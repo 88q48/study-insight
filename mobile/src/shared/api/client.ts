@@ -1,5 +1,5 @@
 import { ANALYSIS_DAYS, API_BASE_URL, DEVICE_ID } from '../config';
-import type { Analysis, ErrorItem, NewErrorPayload } from './types';
+import type { Analysis, ErrorItem, NewErrorPayload, SubjectOption } from './types';
 
 interface RequestOptions {
   method?: string;
@@ -61,5 +61,44 @@ export function markMastered(errorId: string, reviewCount = 1) {
 export function fetchAnalysis(days = ANALYSIS_DAYS): Promise<Analysis> {
   return request(
     `/api/v1/devices/${encodeURIComponent(DEVICE_ID)}/analysis?days=${days}`,
+  );
+}
+
+export function fetchSubjects(): Promise<{
+  total: number;
+  subjects: SubjectOption[];
+}> {
+  return request(
+    `/api/v1/errors/subjects?device_id=${encodeURIComponent(DEVICE_ID)}`,
+  );
+}
+
+export function fetchPracticeErrors(subject?: string, limit = 10) {
+  const subjectQuery = subject
+    ? `&subject=${encodeURIComponent(subject)}`
+    : '';
+  return request<{total: number; subject: string | null; items: ErrorItem[]}>(
+    `/api/v1/errors/practice?device_id=${encodeURIComponent(
+      DEVICE_ID,
+    )}&limit=${limit}${subjectQuery}`,
+  );
+}
+
+export function recordAttempt(errorId: string, answer: string) {
+  return request<{status: string; correct: boolean; error: ErrorItem}>(
+    `/api/v1/errors/${encodeURIComponent(errorId)}/attempts`,
+    {
+      method: 'POST',
+      body: JSON.stringify({device_id: DEVICE_ID, answer}),
+    },
+  );
+}
+
+export function deleteError(errorId: string) {
+  return request<{status: string; deleted: boolean; error_id: string}>(
+    `/api/v1/errors/${encodeURIComponent(errorId)}?device_id=${encodeURIComponent(
+      DEVICE_ID,
+    )}`,
+    {method: 'DELETE'},
   );
 }

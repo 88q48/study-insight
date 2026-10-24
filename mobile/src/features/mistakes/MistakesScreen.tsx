@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { fetchErrors } from '../../shared/api/client';
+import { deleteError, fetchErrors } from '../../shared/api/client';
 import type { ErrorItem } from '../../shared/api/types';
 import {
   CHOICE_KEYS,
@@ -47,6 +47,32 @@ export default function MistakesScreen() {
     );
   }
 
+  const handleDelete = (item: ErrorItem) => {
+    Alert.alert(
+      '删除错题',
+      `确定删除「${item.content || '这道错题'}」吗？`,
+      [
+        {text: '取消', style: 'cancel'},
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteError(item.error_id);
+              setData(current =>
+                current.filter(row => row.error_id !== item.error_id),
+              );
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : '请稍后重试';
+              Alert.alert('删除失败', message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -78,6 +104,14 @@ export default function MistakesScreen() {
               </View>
             )}
             <Text style={styles.answer}>答案：{item.answer || '（未填写答案）'}</Text>
+            <View style={styles.cardFooter}>
+              <Text style={styles.stats}>
+                做题 {item.attempt_count ?? 0} 次 · 正确率 {item.accuracy ?? 0}%
+              </Text>
+              <TouchableOpacity onPress={() => handleDelete(item)}>
+                <Text style={styles.deleteText}>删除</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>暂无错题，快去录入吧！</Text>}
@@ -113,5 +147,13 @@ const styles = StyleSheet.create({
   optionsBox: { marginBottom: 6, gap: 4 },
   optionText: { fontSize: 14, color: '#444' },
   answer: { fontSize: 14, color: '#666' },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  stats: { fontSize: 12.5, color: '#888' },
+  deleteText: { fontSize: 13, color: '#FF3B30', fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 },
 });

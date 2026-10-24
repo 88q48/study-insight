@@ -16,6 +16,10 @@ export interface ErrorItem {
   option_b?: string;
   option_c?: string;
   option_d?: string;
+  attempt_count?: number;
+  correct_count?: number;
+  wrong_count?: number;
+  accuracy?: number;
   created_at: string;
   mastered: boolean;
   review_count: number;
@@ -56,4 +60,9 @@ export interface NewErrorPayload {
   created_at: string;
   mastered?: boolean;
   review_count?: number;
+}
+
+export interface SubjectOption {
+  subject: string;
+  count: number;
 }

@@ -334,3 +334,73 @@ def test_choice_question_fields_are_stored():
     assert invalid.status_code == 422
     assert "D" in invalid.json()["detail"]
 
+
+def test_attempt_stats_practice_priority_and_delete():
+    now = _iso(_now())
+    for error_id, answer in (
+        ("err_stats_a", "A"),
+        ("err_stats_b", "B"),
+        ("err_stats_c", "C"),
+    ):
+        created = client.post(
+            "/api/v1/errors",
+            json={
+                "error_id": error_id,
+                "device_id": DEVICE,
+                "subject": "数学",
+                "knowledge_point": "统计",
+                "content": f"题目 {error_id}",
+                "question_type": "fill",
+                "answer": answer,
+                "created_at": now,
+            },
+        )
+        assert created.status_code == 201
+
+    # A 错两次，C 错一次，B 全对
+    for error_id, answer in (
+        ("err_stats_a", "wrong"),
+        ("err_stats_a", "wrong"),
+        ("err_stats_c", "wrong"),
+        ("err_stats_c", "C"),
+        ("err_stats_b", "B"),
+    ):
+        result = client.post(
+            f"/api/v1/errors/{error_id}/attempts",
+            json={"device_id": DEVICE, "answer": answer},
+        )
+        assert result.status_code == 200
+
+    practice = client.get(
+        f"/api/v1/errors/practice?device_id={DEVICE}&subject=数学&limit=10"
+    ).json()
+    assert [item["error_id"] for item in practice["items"]] == [
+        "err_stats_a",
+        "err_stats_c",
+        "err_stats_b",
+    ]
+    stats = {item["error_id"]: item for item in practice["items"]}
+    assert stats["err_stats_a"]["attempt_count"] == 2
+    assert stats["err_stats_a"]["correct_count"] == 0
+    assert stats["err_stats_a"]["wrong_count"] == 2
+    assert stats["err_stats_a"]["accuracy"] == 0.0
+    assert stats["err_stats_c"]["wrong_count"] == 1
+    assert stats["err_stats_c"]["accuracy"] == 50.0
+    assert stats["err_stats_b"]["accuracy"] == 100.0
+
+    subjects = client.get(f"/api/v1/errors/subjects?device_id={DEVICE}").json()
+    assert subjects["total"] == 1
+    assert subjects["subjects"][0] == {"subject": "数学", "count": 3}
+
+    wrong_device = client.delete(
+        f"/api/v1/errors/err_stats_a?device_id=win_device_02"
+    )
+    assert wrong_device.status_code == 404
+
+    deleted = client.delete(f"/api/v1/errors/err_stats_a?device_id={DEVICE}")
+    assert deleted.status_code == 200
+    remaining = client.get(
+        f"/api/v1/errors/practice?device_id={DEVICE}&limit=10"
+    ).json()
+    assert all(item["error_id"] != "err_stats_a" for item in remaining["items"])
+

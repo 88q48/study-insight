@@ -67,6 +67,8 @@ def _new_error_id() -> str:
 
 
 def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
+    attempt_count = int(row.get("attempt_count", 0))
+    correct_count = int(row.get("correct_count", 0))
     return {
         "error_id": row["error_id"],
         "device_id": row["device_id"],
@@ -80,11 +82,23 @@ def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
         "option_b": row.get("option_b", ""),
         "option_c": row.get("option_c", ""),
         "option_d": row.get("option_d", ""),
+        "attempt_count": attempt_count,
+        "correct_count": correct_count,
+        "wrong_count": max(attempt_count - correct_count, 0),
+        "accuracy": (
+            round(correct_count / attempt_count * 100, 1)
+            if attempt_count
+            else 0.0
+        ),
         "created_at": row["created_at"],
         "mastered": bool(row["mastered"]),
         "review_count": row["review_count"],
         "mastered_at": row["mastered_at"],
     }
+
+
+def _normalize_answer(value: str | None) -> str:
+    return "".join((value or "").split()).lower()
 
 
 # 建表；空库首次启动时写入演示数据，方便 C 直接看到图表。
@@ -123,6 +137,11 @@ class ErrorIn(BaseModel):
 class ErrorPatch(BaseModel):
     mastered: bool | None = None
     review_count: int | None = Field(default=None, ge=0)
+
+
+class AttemptIn(BaseModel):
+    device_id: str = DEFAULT_DEVICE
+    answer: str = ""
 
 
 @app.post("/api/v1/errors", summary="接收错题并落库")
@@ -190,6 +209,52 @@ def upload_error(payload: ErrorIn, response: Response):
         "error_id": error_id,
         "received_at": now,
     }
+
+
+@app.get("/api/v1/errors/subjects", summary="练习科目列表")
+def get_error_subjects(device_id: str = DEFAULT_DEVICE):
+    subjects = db.list_subjects(device_id)
+    return {"total": len(subjects), "subjects": subjects}
+
+
+@app.get("/api/v1/errors/practice", summary="按错题次数优先获取练习队列")
+def get_practice_errors(
+    device_id: str = DEFAULT_DEVICE,
+    subject: str | None = None,
+    limit: int = Query(default=10, ge=1, le=100),
+):
+    rows = db.practice_errors(device_id, subject=subject, limit=limit)
+    return {
+        "total": len(rows),
+        "subject": subject,
+        "items": [_serialize_error(row) for row in rows],
+    }
+
+
+@app.post("/api/v1/errors/{error_id}/attempts", summary="记录一次做题结果")
+def record_error_attempt(error_id: str, payload: AttemptIn):
+    existing = db.get_error(error_id)
+    if existing is None or existing["device_id"] != payload.device_id:
+        raise HTTPException(status_code=404, detail="错题不存在")
+
+    correct = bool(existing["answer"]) and (
+        _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
+    )
+    updated = db.record_attempt(error_id, correct, payload.device_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="错题不存在")
+    return {
+        "status": "success",
+        "correct": correct,
+        "error": _serialize_error(updated),
+    }
+
+
+@app.delete("/api/v1/errors/{error_id}", summary="删除错题")
+def delete_error(error_id: str, device_id: str = DEFAULT_DEVICE):
+    if not db.delete_error(error_id, device_id):
+        raise HTTPException(status_code=404, detail="错题不存在")
+    return {"status": "success", "deleted": True, "error_id": error_id}
 
 
 @app.patch("/api/v1/errors/{error_id}", summary="更新掌握状态 / 复习次数")
