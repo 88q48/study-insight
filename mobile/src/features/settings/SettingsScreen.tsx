@@ -19,6 +19,8 @@ import {
 } from '../../shared/theme/Wallpaper';
 import type { WallpaperId } from '../../shared/theme/Wallpaper';
 import { GlassChip, GlassPanel } from '../../shared/ui/Glass';
+import { listAccounts } from '../../shared/auth/accounts';
+import { useAccount } from '../../shared/auth/useAccount';
 import { FEATURES } from '../../shared/settings/features';
 import { useFeatureFlags } from '../../shared/settings/useFeatureFlags';
 
@@ -36,6 +38,8 @@ export default function SettingsScreen() {
     setCustomWallpaper,
     setOpacity,
   } = useWallpaper();
+  const { account, isDemo, logout, enterDemo, switchTo } = useAccount();
+  const [switching, setSwitching] = useState(false);
   const { flags, setFlag } = useFeatureFlags();
   const [picking, setPicking] = useState(false);
 
@@ -69,6 +73,48 @@ export default function SettingsScreen() {
     }
   };
 
+  const confirmLogout = () => {
+    Alert.alert('退出登录', '账户和数据都还在本机，下次输密码就能回来。', [
+      {text: '取消', style: 'cancel'},
+      {
+        text: '退出',
+        style: 'destructive',
+        onPress: () => {
+          void logout();
+        },
+      },
+    ]);
+  };
+
+  const openDemo = async () => {
+    if (switching) {
+      return;
+    }
+    setSwitching(true);
+    try {
+      await enterDemo();
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const backToMine = async () => {
+    if (switching) {
+      return;
+    }
+    const accounts = await listAccounts();
+    const mine = accounts[0];
+    if (!mine) {
+      return;
+    }
+    setSwitching(true);
+    try {
+      await switchTo(mine.id);
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   const chooseWallpaper = (id: WallpaperId) => {
     if (id === 'custom' && !customUri) {
       void chooseCustomImage();
@@ -95,6 +141,40 @@ export default function SettingsScreen() {
           调整主页背景，让学习地图更接近你的风格。
         </Text>
       </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>账户</Text>
+        <Text style={styles.sectionHint}>数据各存一份</Text>
+      </View>
+      <GlassPanel radius={26} contentStyle={styles.accountCard}>
+        <View style={styles.accountRow}>
+          <Text style={styles.accountLabel}>当前账户</Text>
+          <Text style={styles.accountValue}>
+            {account?.name ?? '未登录'}
+            {isDemo ? ' · 只读' : ''}
+          </Text>
+        </View>
+        {isDemo ? (
+          <Pressable
+            onPress={backToMine}
+            disabled={switching}
+            style={({pressed}) => [
+              styles.accountAction,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.accountActionText}>回到我的账户</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={confirmLogout}
+            style={({pressed}) => [
+              styles.accountAction,
+              pressed && styles.pressed,
+            ]}>
+            <Text style={styles.accountActionText}>退出登录</Text>
+          </Pressable>
+        )}
+      </GlassPanel>
 
       <View style={styles.previewCard}>
         <WallpaperVisual
@@ -241,6 +321,28 @@ export default function SettingsScreen() {
             </View>
           );
         })}
+      </GlassPanel>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>示例账户</Text>
+        <Text style={styles.sectionHint}>看看完整数据</Text>
+      </View>
+      <GlassPanel radius={26} contentStyle={styles.demoCard}>
+        <Text style={styles.demoHint}>
+          121 道错题示例，只读。看的时候不会动到你自己的数据。
+        </Text>
+        <Pressable
+          onPress={isDemo ? backToMine : openDemo}
+          disabled={switching}
+          style={({pressed}) => [
+            styles.demoButton,
+            pressed && styles.pressed,
+            switching && styles.disabled,
+          ]}>
+          <Text style={styles.demoButtonText}>
+            {isDemo ? '退出示例，回到我的账户' : '查看演示数据'}
+          </Text>
+        </Pressable>
       </GlassPanel>
 
       <Pressable
@@ -449,6 +551,55 @@ const makeStyles = (colors: AppColors) =>
       lineHeight: 17,
       color: colors.textMuted,
     },
+    accountCard: {padding: 0},
+    accountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    accountLabel: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    accountValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    accountAction: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
+    },
+    accountActionText: {
+      fontSize: 14,
+      color: colors.danger,
+    },
+    demoCard: {padding: 18},
+    demoHint: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+      marginBottom: 14,
+    },
+    demoButton: {
+      height: 42,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    demoButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    disabled: {opacity: 0.5},
     featureList: {padding: 0},
     featureRow: {
       flexDirection: 'row',

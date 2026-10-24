@@ -14,7 +14,22 @@ import seed from '../api/offlineSeed.json';
  * 一个字符串里足够；后续如果记录量明显变大，再换成 SQLite。
  */
 
-const STORAGE_KEY = 'local_db_v1';
+const STORAGE_KEY_PREFIX = 'local_db_v1';
+
+/**
+ * 每个账户一份独立的题库。
+ *
+ * 以前所有账户共用一个 key，谁最后登录谁的数据就覆盖上去。
+ * 加上账户后缀之后，A 看不到 B 的错题，退出再进来还是自己那份。
+ */
+function storageKey(): string {
+  // activeAccountId 为空说明还没登录（启动动画阶段），
+  // 这时候用占位 key，反正不会被写进去。
+  return `${STORAGE_KEY_PREFIX}_${activeAccountId || 'anon'}`;
+}
+
+/** 当前账户。由 setActiveAccount 设置，切账户时必须跟着换。 */
+let activeAccountId = '';
 const MAX_USAGE_EVENTS = 5000;
 const USAGE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -50,7 +65,52 @@ function seededErrors(): ErrorItem[] {
 }
 
 function emptyState(): LocalDbState {
-  return {version: 1, errors: seededErrors(), events: []};
+  // 新账户从空库开始。121 道演示数据现在只在示例账户里，
+  // 走 seedDemoData() 显式灌入，不会跟着新注册用户出现。
+  return {version: 1, errors: [], events: []};
+}
+
+/** 把演示数据灌进当前账户。只在示例账户上用。 */
+export async function seedDemoData(): Promise<number> {
+  const seeded = seededErrors();
+  if (!seeded.length) {
+    return 0;
+  }
+  await updateLocalState(state => {
+    // 已经有数据就别再灌一遍，免得点两次变成 242 道
+    if (state.errors.length > 0) {
+      return;
+    }
+    state.errors = seeded;
+  });
+  return seeded.length;
+}
+
+/** 清空当前账户的所有错题，使用记录留着。 */
+export async function clearAllErrors(): Promise<void> {
+  await updateLocalState(state => {
+    state.errors = [];
+  });
+}
+
+/**
+ * 切换当前账户。
+ *
+ * 清掉 cache 和 loading 是关键：这两个是模块级变量，不清干净的话
+ * 切完账户读到的还是上一个人的数据——这类 bug 在演示时最难解释。
+ */
+export function setActiveAccount(accountId: string): void {
+  if (activeAccountId === accountId) {
+    return;
+  }
+  activeAccountId = accountId;
+  cache = null;
+  loading = null;
+}
+
+/** 当前是哪个账户的库，调试和「只读示例账户」判断用。 */
+export function getActiveAccountId(): string {
+  return activeAccountId;
 }
 
 function cloneError(item: ErrorItem): ErrorItem {
@@ -93,7 +153,7 @@ async function loadState(): Promise<LocalDbState> {
   }
   if (!loading) {
     loading = (async () => {
-      const raw = await readPreference(STORAGE_KEY, '');
+      const raw = await readPreference(storageKey(), '');
       if (!raw) {
         cache = emptyState();
         return cache;
@@ -130,7 +190,7 @@ export function updateLocalState<T>(
   const task = writeQueue.then(async () => {
     const state = await loadState();
     const result = mutator(state);
-    await writePreference(STORAGE_KEY, JSON.stringify(state));
+    await writePreference(storageKey(), JSON.stringify(state));
     return result;
   });
   writeQueue = task.then(
