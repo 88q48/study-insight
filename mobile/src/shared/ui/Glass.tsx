@@ -16,12 +16,34 @@ import { useAppColors } from '../theme/colors';
  * 这是纯 RN 实现，不依赖原生模糊库，真机与模拟器表现一致。
  */
 export function GlassBackdrop() {
+  const colors = useAppColors();
   return (
-    <View pointerEvents="none" style={styles.backdrop}>
-      <View style={[styles.blob, styles.blobTop]} />
-      <View style={[styles.blob, styles.blobLeft]} />
-      <View style={[styles.blob, styles.blobRight]} />
-      <View style={styles.haze} />
+    <View
+      pointerEvents="none"
+      style={[styles.backdrop, {backgroundColor: colors.background}]}
+    >
+      <View
+        style={[
+          styles.blob,
+          styles.blobTop,
+          {backgroundColor: colors.glassHighlight},
+        ]}
+      />
+      <View
+        style={[
+          styles.blob,
+          styles.blobLeft,
+          {backgroundColor: colors.glass},
+        ]}
+      />
+      <View
+        style={[
+          styles.blob,
+          styles.blobRight,
+          {backgroundColor: 'rgba(0,0,0,0.28)'},
+        ]}
+      />
+      <View style={[styles.haze, {backgroundColor: colors.glass}]} />
     </View>
   );
 }
@@ -78,7 +100,7 @@ export function GlassPanel({
             },
           ]}
         />
-        <View pointerEvents="none" style={styles.panelGlow} />
+        <View pointerEvents="none" style={[styles.panelGlow, {backgroundColor: colors.glassHighlight}]} />
         <View style={contentStyle}>{children}</View>
       </View>
     </View>
@@ -148,7 +170,7 @@ export function GlassButton({
             {backgroundColor: isDark ? 'rgba(255,255,255,0.3)' : colors.glassEdge},
           ]}
         />
-        <View pointerEvents="none" style={styles.buttonGlow} />
+        <View pointerEvents="none" style={[styles.buttonGlow, {backgroundColor: colors.glassHighlight}]} />
         {label ? (
           <Text style={[styles.buttonLabel, {color: labelColor}, textStyle]}>
             {label}
@@ -307,7 +329,7 @@ export function GlassSegmented<T extends string>({
       onLayout={event => setTrackWidth(event.nativeEvent.layout.width)}
       style={[styles.segmentTrack, trackColors.track, style]}
     >
-      <View pointerEvents="none" style={styles.segmentTopLine} />
+      <View pointerEvents="none" style={[styles.segmentTopLine, {backgroundColor: colors.glassEdge}]} />
       {segmentWidth > 0 ? (
         <Animated.View
           pointerEvents="none"
@@ -324,7 +346,7 @@ export function GlassSegmented<T extends string>({
             },
           ]}
         >
-          <View style={styles.segmentThumbGlow} />
+          <View style={[styles.segmentThumbGlow, {backgroundColor: colors.glassHighlight}]} />
         </Animated.View>
       ) : null}
       {options.map(option => {
