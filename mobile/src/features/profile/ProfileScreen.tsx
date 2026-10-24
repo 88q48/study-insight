@@ -1,80 +1,32 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { WebView } from 'react-native-webview';
 
-import { fetchAnalysis } from '../../shared/api/client';
-import type { ErrorStats } from '../../shared/api/types';
-import { DEVICE_ID } from '../../shared/config';
-
-const EMPTY_STATS: ErrorStats = {
-  total_errors: 0,
-  mastered_errors: 0,
-  reviewing_errors: 0,
-  mastery_rate: 0,
-};
+// ⚠️ 把这里的地址换成你们网页看板的真实地址！
+// 如果是后端直接服务的，通常是 8010 端口。
+// 记住：模拟器要用 10.0.2.2 代替 localhost
+const WEB_DASHBOARD_URL = 'http://10.0.2.2:8080/'; 
 
 export default function ProfileScreen() {
-  const [stats, setStats] = useState<ErrorStats>(EMPTY_STATS);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-      setLoading(true);
-      setError('');
-      fetchAnalysis()
-        .then((data) => {
-          if (isActive) {
-            setStats(data.error_stats);
-          }
-        })
-        .catch((err) => {
-          if (isActive) {
-            setError(err instanceof Error ? err.message : '数据加载失败');
-          }
-        })
-        .finally(() => {
-          if (isActive) {
-            setLoading(false);
-          }
-        });
-      return () => { isActive = false; };
-    }, [])
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.avatar}><Text style={{fontSize: 30}}>👤</Text></View>
-        <Text style={styles.username}>本机设备</Text>
-        <Text style={styles.uid}>{DEVICE_ID}</Text>
+        <Text style={styles.title}>📊 数据分析看板</Text>
       </View>
-
-      <Text style={styles.sectionTitle}>📊 我的错题</Text>
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : error ? (
-        <Text style={styles.errorText}>加载失败：{error}</Text>
-      ) : (
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.total_errors}</Text>
-            <Text>总错题</Text>
+      <WebView
+        source={{ uri: WEB_DASHBOARD_URL }}
+        style={styles.webview}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={{ marginTop: 10, color: '#666' }}>看板加载中...</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.mastered_errors}</Text>
-            <Text>已掌握</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.reviewing_errors}</Text>
-            <Text>待复习</Text>
-          </View>
-        </View>
-      )}
-      {!loading && !error && (
-        <Text style={styles.rateText}>掌握率 {stats.mastery_rate}%</Text>
-      )}
+        )}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        scalesPageToFit={true}
+      />
     </View>
   );
 }
@@ -82,35 +34,23 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   header: {
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    padding: 30,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
+    paddingTop: 50,
+    paddingBottom: 15,
     backgroundColor: '#fff',
-    borderRadius: 40,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  webview: { flex: 1 },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: '#f8f9fa',
   },
-  username: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
-  uid: { fontSize: 14, color: '#e0e0e0', marginTop: 5 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', margin: 20 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 10 },
-  statBox: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 5,
-    elevation: 1,
-  },
-  statNum: { fontSize: 22, fontWeight: 'bold', color: '#007AFF', marginBottom: 5 },
-  rateText: { textAlign: 'center', color: '#666', marginTop: 16 },
-  errorText: { textAlign: 'center', color: '#FF3B30', marginTop: 20 },
 });

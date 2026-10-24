@@ -227,20 +227,23 @@
       ["掌握率", err.mastery_rate + "%"]
     ]);
 
-    renderChart("chart-radar", window.Charts.radarError(d.subject_distribution));
+    // 改成真实的字段 knowledge_point_errors
+renderChart("chart-radar", window.Charts.radarError(d.knowledge_point_errors));
     renderChart("chart-subject-mastery", window.Charts.barSubjectMastery(d.subject_distribution));
     renderChart("chart-knowledge", window.Charts.barKnowledge(d.knowledge_points, 10));
     renderChart("chart-funnel", window.Charts.funnelMastery(err));
     renderChart("chart-review", window.Charts.barReview(d.review_trend));
 
-    var subjects = d.subject_distribution;
+    // 把 subject_distribution 改成 subject_errors
+    var subjects = d.subject_errors;
     var weakest = subjects.reduce(function (a, b) {
       return a.error_count >= b.error_count ? a : b;
     });
     var slowest = subjects.reduce(function (a, b) {
       return a.mastery_rate <= b.mastery_rate ? a : b;
     });
-    var top = d.knowledge_points[0];
+    // 把 knowledge_points 改成 knowledge_point_errors
+var top = d.knowledge_point_errors[0];
 
     renderTips("error-tips", [
       "错题最多的是 <b>" + weakest.subject + "</b>，累计 " + weakest.error_count +
