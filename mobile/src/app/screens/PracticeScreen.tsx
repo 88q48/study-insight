@@ -84,5 +84,5 @@ const styles = StyleSheet.create({
   segmentIconActive: {color: '#3B6EF6'},
   segmentText: {fontSize: 16, fontWeight: '600', color: '#6B7280'},
   segmentTextActive: {color: '#3B6EF6'},
-  body: { flex: 1 },
+  body: { flex: 1, paddingBottom: 92 },
 });

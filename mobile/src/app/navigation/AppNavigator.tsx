@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EntryScreen } from '../../features/entry';
 import { ProfileScreen } from '../../features/profile';
@@ -9,29 +10,33 @@ import type { RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
+const TAB_ICONS: Record<keyof RootTabParamList, string> = {
+  录入: '✎',
+  练习: '▤',
+  我的: '◯',
+};
+
 export default function AppNavigator() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
-        tabBarActiveTintColor: '#3B6EF6',
-        tabBarInactiveTintColor: '#7B8494',
-        tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabLabel,
-        // 用 Emoji 代替图标，避免配置原生图标库
-        tabBarIcon: ({ focused }) => {
-          let icon = '';
-          if (route.name === '录入') icon = '✎';
-          if (route.name === '练习') icon = '🎓';
-          if (route.name === '我的') icon = '◯';
-          return (
-            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Text style={[styles.iconText, focused && styles.iconTextActive]}>
-                {icon}
-              </Text>
-            </View>
-          );
-        },
+        tabBarShowLabel: false,
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: '#111827',
+        tabBarInactiveTintColor: '#8E8E93',
+        tabBarStyle: [styles.dock, {bottom: insets.bottom + 6}],
+        tabBarItemStyle: styles.dockItem,
+        tabBarIcon: ({ focused }) => (
+          <View style={styles.iconWrap}>
+            <Text style={[styles.iconText, focused && styles.iconTextActive]}>
+              {TAB_ICONS[route.name]}
+            </Text>
+            {focused && <View style={styles.activeDot} />}
+          </View>
+        ),
       })}
     >
       <Tab.Screen name="录入" component={EntryScreen} />
@@ -46,21 +51,31 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: '#FFFFFF',
-    borderTopColor: '#E8EEF8',
-    borderTopWidth: 1,
-    paddingTop: 6,
+  dock: {
+    position: 'absolute',
+    left: 30,
+    right: 30,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderTopWidth: 0,
+    shadowColor: '#111827',
+    shadowOpacity: 0.13,
+    shadowRadius: 16,
+    shadowOffset: {width: 0, height: 7},
+    elevation: 9,
+    paddingBottom: 0,
+    paddingTop: 0,
   },
-  tabLabel: {fontSize: 12, fontWeight: '600'},
-  iconWrap: {
-    width: 44,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dockItem: {height: 56, paddingVertical: 0},
+  iconWrap: {height: 34, width: 50, alignItems: 'center', justifyContent: 'center'},
+  iconText: {fontSize: 20, lineHeight: 23, color: '#8E8E93', textAlign: 'center'},
+  iconTextActive: {color: '#111827'},
+  activeDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#111827',
+    marginTop: 1,
   },
-  iconWrapActive: {backgroundColor: '#EAF1FF'},
-  iconText: {fontSize: 18, color: '#7B8494'},
-  iconTextActive: {color: '#3B6EF6'},
 });

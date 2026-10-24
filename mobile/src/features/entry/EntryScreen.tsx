@@ -164,7 +164,7 @@ export default function EntryScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 110 }}>
 
         {/* OCR 拍照按钮 */}
         <TouchableOpacity
