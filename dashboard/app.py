@@ -183,7 +183,7 @@ with tab_error:
     if not plan:
         st.info("还没有知识点数据，等错题录入后这里会生成清单。")
     else:
-        st.caption("按待复习数排序，今天先做第 1 条，做完标记已掌握，清单就短一条。")
+        st.caption("按待复习数排序，今天先做第 1 条，做完再看下一条。")
 
         _rows = []
         for item in plan:

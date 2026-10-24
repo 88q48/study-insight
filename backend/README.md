@@ -52,6 +52,12 @@
   "subject": "数学",
   "knowledge_point": "导数与函数",
   "content": "求 f(x)=x^3-3x 的单调区间",
+  "answer": "C",
+  "question_type": "choice",
+  "option_a": "递增",
+  "option_b": "递减",
+  "option_c": "先增后减",
+  "option_d": "无法判断",
   "created_at": "2026-10-17T20:00:00Z",
   "mastered": false,
   "review_count": 0
@@ -63,6 +69,9 @@
 | `error_id` | 每条错题唯一，用于去重 |
 | `subject` | 中文科目名，与客户端录入一致 |
 | `knowledge_point` | 知识点，用于薄弱项统计 |
+| `question_type` | `choice`=选择题，`fill`=填空题；旧客户端不传时默认 `fill` |
+| `option_a` ~ `option_d` | 选择题四个选项；填空题可留空 |
+| `answer` | 填空题填答案/解析；选择题填 `A/B/C/D` |
 | `mastered` | 是否已彻底掌握 |
 | `review_count` | 已复习次数 |
 
@@ -106,11 +115,11 @@ device           device_id(PK) platform registered_at
 | `db.py` | SQLite 连接、建表、错题 / 使用记录读写 |
 | `analytics.py` | 聚合 11 个顶层字段（错题 + 专注 + 交叉） |
 | `seed_demo.py` | 演示数据：120 道错题 + 7 天使用记录 |
-| `tests/test_api.py` | 7 个接口测试，使用临时库 |
+| `tests/test_api.py` | 9 个接口测试，使用临时库 |
 
 ### 数据表
 
-- `error_record`：`error_id`(PK)、`device_id`、`subject`、`knowledge_point`、`content`、`created_at`、`mastered`、`review_count`、`mastered_at`、`received_at`
+- `error_record`：`error_id`(PK)、`device_id`、`subject`、`knowledge_point`、`content`、`answer`、`question_type`、`option_a`~`option_d`、`attempt_count`、`correct_count`、`created_at`、`mastered`、`review_count`、`mastered_at`、`received_at`
 - `usage_event`：`event_id`(PK)、`device_id`、`platform`、`app_key`、`app_name`、`category`、`start_at`、`end_at`、`duration_seconds`、`received_at`
 
 错题按 `error_id`、使用记录按 `event_id` 去重（`ON CONFLICT DO NOTHING`），重复上传不会覆盖已有数据。
@@ -122,6 +131,10 @@ device           device_id(PK) platform registered_at
 | POST | `/api/v1/errors` | 上传错题并落库；`content` 为题目、`answer` 为答案，兼容 `question_content` 旧字段；不传 `error_id` 时自动生成 |
 | PATCH | `/api/v1/errors/{error_id}` | 更新 `mastered` / `review_count` |
 | GET | `/api/v1/errors?device_id=&limit=&subject=` | 查看最近错题 |
+| GET | `/api/v1/errors/subjects?device_id=` | 获取练习科目列表 |
+| GET | `/api/v1/errors/practice?device_id=&subject=&limit=` | 按错题次数优先获取练习队列 |
+| POST | `/api/v1/errors/{error_id}/attempts` | 记录一次做题结果并累计正确率 |
+| DELETE | `/api/v1/errors/{error_id}?device_id=` | 删除本设备的错题 |
 | POST | `/api/v1/events/batch` | 批量上传使用记录，支持数组或 `{"events": [...]}` |
 | GET | `/api/v1/devices/{device_id}/analysis?days=7` | 正式契约，11 个顶层字段 |
 | GET | `/api/v1/analysis?device_id=&days=` | 旧路径兼容，返回同样结构 |

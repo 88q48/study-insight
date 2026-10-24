@@ -20,11 +20,13 @@ import os
 import sys
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from pathlib import Path
+from typing import Any, Literal
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import analytics
@@ -45,6 +47,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 看板静态页：手机端 WebView 直接嵌 /dashboard
+_WEB_DIR = (Path(__file__).resolve().parent.parent / "dashboard" / "web")
+if _WEB_DIR.is_dir():
+    app.mount("/dashboard", StaticFiles(directory=str(_WEB_DIR), html=True), name="dashboard")
+
 
 DEFAULT_DEVICE = "win_device_01"
 
@@ -67,6 +75,8 @@ def _new_error_id() -> str:
 
 
 def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
+    attempt_count = int(row.get("attempt_count", 0))
+    correct_count = int(row.get("correct_count", 0))
     return {
         "error_id": row["error_id"],
         "device_id": row["device_id"],
@@ -75,11 +85,28 @@ def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
         "content": row["content"],
         "question_content": row["content"],  # 兼容旧客户端
         "answer": row.get("answer", ""),
+        "question_type": row.get("question_type", "fill"),
+        "option_a": row.get("option_a", ""),
+        "option_b": row.get("option_b", ""),
+        "option_c": row.get("option_c", ""),
+        "option_d": row.get("option_d", ""),
+        "attempt_count": attempt_count,
+        "correct_count": correct_count,
+        "wrong_count": max(attempt_count - correct_count, 0),
+        "accuracy": (
+            round(correct_count / attempt_count * 100, 1)
+            if attempt_count
+            else 0.0
+        ),
         "created_at": row["created_at"],
         "mastered": bool(row["mastered"]),
         "review_count": row["review_count"],
         "mastered_at": row["mastered_at"],
     }
+
+
+def _normalize_answer(value: str | None) -> str:
+    return "".join((value or "").split()).lower()
 
 
 # 建表；空库首次启动时写入演示数据，方便 C 直接看到图表。
@@ -104,6 +131,11 @@ class ErrorIn(BaseModel):
     knowledge_point: str | None = None    # 知识点，空则归入 "未分类"
     content: str | None = None            # 题目内容（正式字段）
     answer: str | None = None             # 答案 / 解析（可选）
+    question_type: Literal["choice", "fill"] = "fill"  # choice=选择题，fill=填空题
+    option_a: str | None = None           # 选择题选项 A
+    option_b: str | None = None           # 选择题选项 B
+    option_c: str | None = None           # 选择题选项 C
+    option_d: str | None = None           # 选择题选项 D
     question_content: str | None = None   # 旧字段，兼容客户端已发出的请求
     created_at: datetime | None = None    # 不传时用服务器当前时间
     mastered: bool = False
@@ -115,6 +147,11 @@ class ErrorPatch(BaseModel):
     review_count: int | None = Field(default=None, ge=0)
 
 
+class AttemptIn(BaseModel):
+    device_id: str = DEFAULT_DEVICE
+    answer: str = ""
+
+
 @app.post("/api/v1/errors", summary="接收错题并落库")
 def upload_error(payload: ErrorIn, response: Response):
     subject = payload.subject.strip()
@@ -124,6 +161,32 @@ def upload_error(payload: ErrorIn, response: Response):
     knowledge_point = (payload.knowledge_point or "").strip() or "未分类"
     content = (payload.content or payload.question_content or "").strip()
     answer = (payload.answer or "").strip()
+    question_type = payload.question_type
+    options = {
+        "option_a": (payload.option_a or "").strip(),
+        "option_b": (payload.option_b or "").strip(),
+        "option_c": (payload.option_c or "").strip(),
+        "option_d": (payload.option_d or "").strip(),
+    }
+    if question_type == "choice":
+        missing = [
+            key.removeprefix("option_").upper()
+            for key, value in options.items()
+            if not value
+        ]
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail=f"选择题缺少选项：{', '.join(missing)}",
+            )
+        answer = answer.upper()
+        if answer not in {"A", "B", "C", "D"}:
+            raise HTTPException(
+                status_code=422,
+                detail="选择题的 answer 必须是 A/B/C/D 之一",
+            )
+    else:
+        options = {key: "" for key in options}
     error_id = (payload.error_id or "").strip() or _new_error_id()
     created_at = _to_utc_iso(payload.created_at)
     mastered = bool(payload.mastered)
@@ -136,6 +199,8 @@ def upload_error(payload: ErrorIn, response: Response):
         "knowledge_point": knowledge_point,
         "content": content,
         "answer": answer,
+        "question_type": question_type,
+        **options,
         "created_at": created_at,
         "mastered": mastered,
         "review_count": payload.review_count,
@@ -152,6 +217,52 @@ def upload_error(payload: ErrorIn, response: Response):
         "error_id": error_id,
         "received_at": now,
     }
+
+
+@app.get("/api/v1/errors/subjects", summary="练习科目列表")
+def get_error_subjects(device_id: str = DEFAULT_DEVICE):
+    subjects = db.list_subjects(device_id)
+    return {"total": len(subjects), "subjects": subjects}
+
+
+@app.get("/api/v1/errors/practice", summary="按错题次数优先获取练习队列")
+def get_practice_errors(
+    device_id: str = DEFAULT_DEVICE,
+    subject: str | None = None,
+    limit: int = Query(default=10, ge=1, le=100),
+):
+    rows = db.practice_errors(device_id, subject=subject, limit=limit)
+    return {
+        "total": len(rows),
+        "subject": subject,
+        "items": [_serialize_error(row) for row in rows],
+    }
+
+
+@app.post("/api/v1/errors/{error_id}/attempts", summary="记录一次做题结果")
+def record_error_attempt(error_id: str, payload: AttemptIn):
+    existing = db.get_error(error_id)
+    if existing is None or existing["device_id"] != payload.device_id:
+        raise HTTPException(status_code=404, detail="错题不存在")
+
+    correct = bool(existing["answer"]) and (
+        _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
+    )
+    updated = db.record_attempt(error_id, correct, payload.device_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="错题不存在")
+    return {
+        "status": "success",
+        "correct": correct,
+        "error": _serialize_error(updated),
+    }
+
+
+@app.delete("/api/v1/errors/{error_id}", summary="删除错题")
+def delete_error(error_id: str, device_id: str = DEFAULT_DEVICE):
+    if not db.delete_error(error_id, device_id):
+        raise HTTPException(status_code=404, detail="错题不存在")
+    return {"status": "success", "deleted": True, "error_id": error_id}
 
 
 @app.patch("/api/v1/errors/{error_id}", summary="更新掌握状态 / 复习次数")
@@ -289,7 +400,11 @@ if __name__ == "__main__":
     # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
+<<<<<<< HEAD
         host="0.0.0.0", # 允许局域网和模拟器访问,
+=======
+        host="0.0.0.0",  # 监听所有网卡，模拟器和局域网真机才连得上
+>>>>>>> 9c3b4d0d003b245518aff138ff2d679877543d44
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )

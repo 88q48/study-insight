@@ -121,9 +121,9 @@ D:\conda\envs\usage_stats\python.exe -c "import requests; r=requests.post('http:
 > 数据从手机出发，经过后端，最后落到这块看板上。刚才那道题已经在里面了，
 > 而且清单立刻变长了——系统知道今晚多了 1 道要做的。
 
-### 第 4 步：标记已掌握（40 秒）
+### 第 4 步：用接口模拟标记已掌握（可选，40 秒）
 
-模拟「学生在手机上把这道题重做了一遍，点完成」：
+模拟后端收到一次掌握状态更新。手机端目前不提供这个按钮，这里只演示 `PATCH` 接口：
 
 ```cmd
 D:\conda\envs\usage_stats\python.exe -c "import requests; p=requests.patch('http://127.0.0.1:8010/api/v1/errors/demo_live_01', json={'mastered':True,'review_count':1}); print(p.status_code, p.json()['status'])"
