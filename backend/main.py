@@ -9,6 +9,7 @@
 - GET    /api/v1/analysis                      兼容旧路径，返回同样结构
 - GET    /api/v1/devices/{device_id}/sync      同步信息
 - GET    /api/v1/health                        健康检查
+- GET    /dashboard                            看板静态页（手机端 WebView 直接嵌）
 
 启动：python main.py（默认 8010，可用 $env:PORT 覆盖）
 文档：http://127.0.0.1:8010/docs
@@ -20,11 +21,13 @@ import os
 import sys
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import analytics
@@ -45,6 +48,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================================
+# 看板静态页：手机端用 WebView 直接嵌 /dashboard
+# ==========================================
+# dashboard/web 与 backend 同级，往上找一层再进 dashboard/web。
+# 目录不存在时跳过挂载，避免后端因为少了前端文件起不来。
+_WEB_DIR = (Path(__file__).resolve().parent.parent / "dashboard" / "web")
+if _WEB_DIR.is_dir():
+    app.mount("/dashboard", StaticFiles(directory=str(_WEB_DIR), html=True), name="dashboard")
+else:
+    print(f"[warn] 没找到看板目录，跳过 /dashboard 挂载：{_WEB_DIR}")
+
 
 DEFAULT_DEVICE = "win_device_01"
 
@@ -289,7 +304,7 @@ if __name__ == "__main__":
     # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
+        host="0.0.0.0",  # 监听所有网卡，手机模拟器/局域网真机才连得上
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )

@@ -8,6 +8,10 @@ buildscript {
         kotlinVersion = "2.2.0"
     }
     repositories {
+        // 国内镜像优先，直连 Google / Maven Central 经常超时
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         google()
         mavenCentral()
     }

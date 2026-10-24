@@ -60,7 +60,12 @@
       return Promise.resolve(window.MOCK_DATA);
     }
 
+    // 配了就用配的；留空则按同源推导，手机 WebView 里也能直接用
     var base = (cfg.API_BASE_URL || "").replace(/\/$/, "");
+    if (!base) {
+      var origin = (window.location && window.location.origin) || "";
+      base = origin && origin !== "null" ? origin + "/api/v1" : "/api/v1";
+    }
     var dev = encodeURIComponent(cfg.DEVICE_ID);
     var days = cfg.DAYS;
     // 正式契约排最前，过渡版垫底
