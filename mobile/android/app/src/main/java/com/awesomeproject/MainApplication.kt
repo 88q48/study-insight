@@ -18,6 +18,7 @@ class MainApplication : Application(), ReactApplication {
           // add(MyReactNativePackage())
           add(FeedbackSoundPackage())
           add(UsageStatsPackage())
+          add(AppPreferencesPackage())
         },
     )
   }

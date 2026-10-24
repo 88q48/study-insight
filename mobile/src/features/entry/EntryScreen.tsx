@@ -1,18 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
   Alert,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
-import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
-import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
+import {
+  launchCamera,
+  launchImageLibrary,
+  type ImagePickerResponse,
+} from 'react-native-image-picker';
+import TextRecognition, {
+  TextRecognitionScript,
+} from '@react-native-ml-kit/text-recognition';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createError } from '../../shared/api/client';
 import type { QuestionType } from '../../shared/api/types';
@@ -20,10 +26,34 @@ import { CHOICE_KEYS } from '../../shared/domain/error';
 import type { ChoiceKey } from '../../shared/domain/error';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import {
+  GlassButton,
+  GlassChip,
+  GlassPanel,
+  GlassSegmented,
+} from '../../shared/ui/Glass';
+import type { GlassSegmentOption } from '../../shared/ui/Glass';
+
+const SUBJECT_OPTIONS = ['数学', '物理', '英语', '语文', '化学', '生物'];
+
+const KNOWLEDGE_POINTS: Record<string, readonly string[]> = {
+  数学: ['导数与函数', '立体几何', '数列', '概率统计'],
+  物理: ['电磁学', '力学', '光学', '热学'],
+  英语: ['完形填空', '阅读理解', '语法填空'],
+  语文: ['文言文', '阅读理解', '古诗文默写'],
+  化学: ['化学方程式', '元素周期表', '有机化学'],
+  生物: ['细胞结构', '遗传学', '生态系统'],
+};
+
+const TYPE_OPTIONS: readonly GlassSegmentOption<QuestionType>[] = [
+  {value: 'fill', label: '填空题'},
+  {value: 'choice', label: '选择题'},
+];
 
 export default function EntryScreen() {
   const colors = useAppColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const [subject, setSubject] = useState('');
   const [knowledgePoint, setKnowledgePoint] = useState('');
   const [question, setQuestion] = useState('');
@@ -36,26 +66,30 @@ export default function EntryScreen() {
     D: '',
   });
   const [correctOption, setCorrectOption] = useState<ChoiceKey | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   const updateOption = (key: ChoiceKey, value: string) => {
     setOptions(current => ({...current, [key]: value}));
   };
 
-  // 状态管理
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const handleSubjectChange = (nextSubject: string) => {
+    setSubject(nextSubject);
+    if (!KNOWLEDGE_POINTS[nextSubject]?.includes(knowledgePoint)) {
+      setKnowledgePoint('');
+    }
+  };
 
-  // ================== OCR 相关逻辑 ==================
   const handleOCR = () => {
     Alert.alert('OCR 拍照识别', '请选择图片来源', [
-      { text: '取消', style: 'cancel' },
-      { text: '拍照', onPress: () => openImagePicker('camera') },
-      { text: '从相册选择', onPress: () => openImagePicker('library') },
+      {text: '取消', style: 'cancel'},
+      {text: '拍照', onPress: () => openImagePicker('camera')},
+      {text: '从相册选择', onPress: () => openImagePicker('library')},
     ]);
   };
 
   const openImagePicker = async (type: 'camera' | 'library') => {
-    const options = {
+    const optionsForPicker = {
       mediaType: 'photo' as const,
       maxWidth: 1200,
       maxHeight: 1200,
@@ -65,14 +99,17 @@ export default function EntryScreen() {
     try {
       let response: ImagePickerResponse;
       if (type === 'camera') {
-        response = await launchCamera(options);
+        response = await launchCamera(optionsForPicker);
       } else {
-        response = await launchImageLibrary(options);
+        response = await launchImageLibrary(optionsForPicker);
       }
 
-      if (response.didCancel) return;
+      if (response.didCancel) {
+        return;
+      }
       if (response.errorCode) {
-        return Alert.alert('错误', response.errorMessage || '无法获取图片');
+        Alert.alert('错误', response.errorMessage || '无法获取图片');
+        return;
       }
 
       const imageUri = response.assets?.[0]?.uri;
@@ -97,7 +134,7 @@ export default function EntryScreen() {
         throw new Error('没有识别到文字，请换个角度再拍一张。');
       }
       setQuestion(text);
-      Alert.alert('识别完成', '题目已填入，请补充科目和知识点。');
+      Alert.alert('识别完成', '题目已填入，请选择科目和知识点。');
     } catch (err) {
       const message = err instanceof Error ? err.message : '请手动输入题目';
       Alert.alert('识别失败', message);
@@ -106,10 +143,8 @@ export default function EntryScreen() {
     }
   };
 
-
-  // ================== 提交逻辑 ==================
   const handleSubmit = async () => {
-    if (!subject || !question) {
+    if (!subject.trim() || !question.trim()) {
       Alert.alert('提示', '科目和题目内容不能为空！');
       return;
     }
@@ -124,10 +159,9 @@ export default function EntryScreen() {
         return;
       }
     }
-    setIsSubmitting(true);
 
+    setIsSubmitting(true);
     const payload = {
-      // 带随机后缀：只用毫秒时间戳，同一毫秒连点两次会被后端当成重复写入
       error_id: `err_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       subject,
       knowledge_point: knowledgePoint || '未分类',
@@ -147,7 +181,6 @@ export default function EntryScreen() {
     try {
       const result = await createError(payload);
       Alert.alert('成功', result.message || '错题录入成功！');
-      // 清空表单
       setSubject('');
       setKnowledgePoint('');
       setQuestion('');
@@ -163,248 +196,293 @@ export default function EntryScreen() {
     }
   };
 
-  // ================== UI 渲染 ==================
+  const knowledgeOptions = subject ? KNOWLEDGE_POINTS[subject] || [] : [];
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 110 }}>
-
-        {/* OCR 拍照按钮 */}
-        <TouchableOpacity
-          style={[styles.ocrBtn, isOcrLoading && { opacity: 0.7 }]}
-          onPress={handleOCR}
-          disabled={isOcrLoading}
-        >
-          {isOcrLoading ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ActivityIndicator color={colors.onPrimary} style={{ marginRight: 10 }} />
-              <Text style={styles.ocrBtnText}>正在识别中...</Text>
-            </View>
-          ) : (
-            <Text style={styles.ocrBtnText}>📷 拍照识别题目 (OCR)</Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.label}>题型 *</Text>
-        <View style={styles.typeRow}>
-          <TouchableOpacity
-            style={[styles.typeBtn, questionType === 'choice' && styles.typeBtnActive]}
-            onPress={() => setQuestionType('choice')}
-          >
-            <Text style={[styles.typeBtnText, questionType === 'choice' && styles.typeBtnTextActive]}>
-              选择题
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeBtn, questionType === 'fill' && styles.typeBtnActive]}
-            onPress={() => setQuestionType('fill')}
-          >
-            <Text style={[styles.typeBtnText, questionType === 'fill' && styles.typeBtnTextActive]}>
-              填空题
-            </Text>
-          </TouchableOpacity>
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 20,
+            paddingBottom: insets.bottom + 150,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.pageHeader}>
+          <Text style={styles.kicker}>记录一道 · 自动整理</Text>
+          <Text style={styles.title}>录入</Text>
+          <Text style={styles.subtitle}>
+            拍照识别或手动填写，保存后自动进入练习队列。
+          </Text>
         </View>
 
-        <Text style={styles.label}>科目 *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="例如：数学"
-          placeholderTextColor={colors.placeholder}
-          value={subject}
-          onChangeText={setSubject}
+        <GlassButton
+          label={isOcrLoading ? '正在识别...' : '📷 拍照识别题目 (OCR)'}
+          tone="dark"
+          onPress={handleOCR}
+          disabled={isOcrLoading}
+          style={styles.ocrButton}
         />
 
-        <Text style={styles.label}>知识点</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="例如：导数"
-          placeholderTextColor={colors.placeholder}
-          value={knowledgePoint}
-          onChangeText={setKnowledgePoint}
-        />
+        <GlassPanel radius={26} contentStyle={styles.cardContent}>
+          <Text style={styles.cardTitle}>题目分类</Text>
+          <GlassSegmented
+            options={TYPE_OPTIONS}
+            value={questionType}
+            onChange={setQuestionType}
+            style={styles.typeSegment}
+          />
 
-        <Text style={styles.label}>题目内容 *</Text>
-        <TextInput
-          style={[styles.input, { height: 100 }]}
-          multiline
-          textAlignVertical="top"
-          placeholder="输入题目..."
-          placeholderTextColor={colors.placeholder}
-          value={question}
-          onChangeText={setQuestion}
-        />
-
-        {questionType === 'choice' ? (
-          <>
-            <Text style={styles.label}>选项 *</Text>
-            {CHOICE_KEYS.map(key => (
-              <View style={styles.optionRow} key={key}>
-                <View style={[styles.optionBadge, correctOption === key && styles.optionBadgeActive]}>
-                  <Text style={[styles.optionBadgeText, correctOption === key && styles.optionBadgeTextActive]}>
-                    {key}
-                  </Text>
-                </View>
-                <TextInput
-                  style={[styles.input, styles.optionInput]}
-                  placeholder={`选项 ${key}`}
-                  placeholderTextColor={colors.placeholder}
-                  value={options[key]}
-                  onChangeText={value => updateOption(key, value)}
-                />
-              </View>
+          <Text style={styles.fieldLabel}>科目 *</Text>
+          <View style={styles.chipWrap}>
+            {SUBJECT_OPTIONS.map(item => (
+              <GlassChip
+                key={item}
+                label={item}
+                active={subject === item}
+                onPress={() => handleSubjectChange(item)}
+                accessibilityLabel={`选择科目${item}`}
+              />
             ))}
+          </View>
 
-            <Text style={styles.label}>正确答案 *</Text>
-            <View style={styles.correctRow}>
-              {CHOICE_KEYS.map(key => (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.correctBtn, correctOption === key && styles.correctBtnActive]}
-                  onPress={() => setCorrectOption(key)}
-                >
-                  <Text style={[styles.correctBtnText, correctOption === key && styles.correctBtnTextActive]}>
-                    {key}
-                  </Text>
-                </TouchableOpacity>
+          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
+            知识点
+          </Text>
+          {subject ? (
+            <View style={styles.chipWrap}>
+              {knowledgeOptions.map(item => (
+                <GlassChip
+                  key={item}
+                  label={item}
+                  active={knowledgePoint === item}
+                  onPress={() =>
+                    setKnowledgePoint(current =>
+                      current === item ? '' : item,
+                    )
+                  }
+                  accessibilityLabel={`选择知识点${item}`}
+                />
               ))}
             </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>答案 / 解析</Text>
-            <TextInput
-              style={[styles.input, { height: 80 }]}
-              multiline
-              textAlignVertical="top"
-              placeholder="输入答案..."
-              placeholderTextColor={colors.placeholder}
-              value={answer}
-              onChangeText={setAnswer}
-            />
-          </>
-        )}
+          ) : (
+            <Text style={styles.fieldHint}>先选择科目，再选择知识点。</Text>
+          )}
+        </GlassPanel>
 
-        <TouchableOpacity
-          style={[styles.submitBtn, isSubmitting && { opacity: 0.5 }]}
+
+        <GlassPanel radius={26} contentStyle={styles.cardContent}>
+          <Text style={styles.cardTitle}>题目与答案</Text>
+
+          <Text style={styles.fieldLabel}>题目内容 *</Text>
+          <TextInput
+            style={[styles.input, styles.questionInput]}
+            multiline
+            textAlignVertical="top"
+            placeholder="输入题目内容..."
+            placeholderTextColor={colors.placeholder}
+            selectionColor={colors.text}
+            value={question}
+            onChangeText={setQuestion}
+          />
+
+          {questionType === 'choice' ? (
+            <>
+              <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
+                选项 *
+              </Text>
+              {CHOICE_KEYS.map(key => (
+                <View style={styles.optionRow} key={key}>
+                  <View
+                    style={[
+                      styles.optionKey,
+                      correctOption === key && styles.optionKeyActive,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.optionKeyText,
+                        correctOption === key && styles.optionKeyTextActive,
+                      ]}>
+                      {key}
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={[styles.input, styles.optionInput]}
+                    placeholder={`选项 ${key}`}
+                    placeholderTextColor={colors.placeholder}
+                    selectionColor={colors.text}
+                    value={options[key]}
+                    onChangeText={value => updateOption(key, value)}
+                  />
+                </View>
+              ))}
+
+              <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
+                正确答案 *
+              </Text>
+              <View style={styles.chipWrap}>
+                {CHOICE_KEYS.map(key => (
+                  <GlassChip
+                    key={key}
+                    label={key}
+                    active={correctOption === key}
+                    onPress={() => setCorrectOption(key)}
+                    accessibilityLabel={`选择正确答案${key}`}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
+                答案 / 解析
+              </Text>
+              <TextInput
+                style={[styles.input, styles.answerInput]}
+                multiline
+                textAlignVertical="top"
+                placeholder="输入答案或解析..."
+                placeholderTextColor={colors.placeholder}
+                selectionColor={colors.text}
+                value={answer}
+                onChangeText={setAnswer}
+              />
+            </>
+          )}
+        </GlassPanel>
+
+        <GlassButton
+          label={isSubmitting ? '提交中...' : '保存错题'}
+          tone="dark"
           onPress={handleSubmit}
           disabled={isSubmitting}
-        >
-          <Text style={styles.submitBtnText}>
-            {isSubmitting ? '提交中...' : '保存错题'}
-          </Text>
-        </TouchableOpacity>
+          style={styles.submitButton}
+        />
+
+        {isOcrLoading ? (
+          <View style={styles.ocrStatus}>
+            <ActivityIndicator size="small" color={colors.textMuted} />
+            <Text style={styles.ocrStatusText}>正在识别图片中的文字...</Text>
+          </View>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     container: {flex: 1, backgroundColor: colors.background},
-    ocrBtn: {
-      backgroundColor: colors.primaryStrong,
-      padding: 16,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.3)',
-      alignItems: 'center',
-      marginBottom: 20,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      shadowColor: colors.shadow,
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-      shadowOffset: {width: 0, height: 8},
-      elevation: 4,
-    },
-    ocrBtnText: {color: colors.onPrimary, fontSize: 16, fontWeight: '700'},
-    label: {
-      fontSize: 15,
+    content: {paddingHorizontal: 20},
+    pageHeader: {marginBottom: 18},
+    kicker: {
+      fontSize: 13,
+      color: colors.textMuted,
+      letterSpacing: 1.1,
       fontWeight: '600',
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 42,
+      lineHeight: 50,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    subtitle: {
+      marginTop: 6,
+      fontSize: 14,
+      lineHeight: 21,
       color: colors.textSecondary,
+    },
+    ocrButton: {marginBottom: 16},
+    cardContent: {padding: 18},
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    typeSegment: {marginBottom: 18},
+    fieldLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.6,
       marginBottom: 8,
     },
-    typeRow: {flexDirection: 'row', gap: 10, marginBottom: 15},
-    typeBtn: {
-      flex: 1,
-      paddingVertical: 11,
-      borderRadius: 16,
+    fieldLabelSpaced: {marginTop: 18},
+    fieldHint: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+      paddingVertical: 4,
+    },
+    chipWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    input: {
+      backgroundColor: colors.surfaceMuted,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
-      backgroundColor: colors.glass,
-      alignItems: 'center',
+      borderColor: colors.border,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: colors.text,
     },
-    typeBtnActive: {
-      backgroundColor: colors.primaryStrong,
-      borderColor: 'rgba(255,255,255,0.3)',
+    questionInput: {
+      minHeight: 110,
+      textAlignVertical: 'top',
     },
-    typeBtnText: {fontSize: 15, fontWeight: '600', color: colors.textSecondary},
-    typeBtnTextActive: {color: colors.onPrimary},
+    answerInput: {
+      minHeight: 84,
+      textAlignVertical: 'top',
+    },
     optionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      marginBottom: 10,
+      marginBottom: 9,
     },
-    optionBadge: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: colors.glass,
+    optionKey: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
       borderWidth: 1,
-      borderColor: colors.glassBorder,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    optionBadgeActive: {
+    optionKeyActive: {
       backgroundColor: colors.primaryStrong,
-      borderColor: 'rgba(255,255,255,0.3)',
+      borderColor: 'rgba(255,255,255,0.32)',
     },
-    optionBadgeText: {color: colors.textSecondary, fontWeight: 'bold'},
-    optionBadgeTextActive: {color: colors.onPrimary},
-    optionInput: {flex: 1, marginBottom: 0},
-    correctRow: {flexDirection: 'row', gap: 10, marginBottom: 20},
-    correctBtn: {
-      flex: 1,
-      paddingVertical: 12,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.glassBorder,
-      backgroundColor: colors.glass,
+    optionKeyText: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
+    optionKeyTextActive: {color: colors.onPrimary},
+    optionInput: {flex: 1},
+    submitButton: {marginTop: 18},
+    ocrStatus: {
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 12,
     },
-    correctBtnActive: {
-      backgroundColor: colors.primaryStrong,
-      borderColor: 'rgba(255,255,255,0.3)',
+    ocrStatusText: {
+      fontSize: 12,
+      color: colors.textMuted,
     },
-    correctBtnText: {fontSize: 16, fontWeight: 'bold', color: colors.textSecondary},
-    correctBtnTextActive: {color: colors.onPrimary},
-    input: {
-      backgroundColor: colors.glass,
-      borderWidth: 1,
-      borderColor: colors.glassBorder,
-      borderRadius: 16,
-      padding: 12,
-      fontSize: 16,
-      color: colors.text,
-      marginBottom: 15,
-    },
-    submitBtn: {
-      backgroundColor: colors.primaryStrong,
-      padding: 16,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.3)',
-      alignItems: 'center',
-      marginTop: 10,
-      marginBottom: 40,
-      elevation: 3,
-      shadowColor: colors.shadow,
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      shadowOffset: {width: 0, height: 7},
-    },
-    submitBtnText: {color: colors.onPrimary, fontSize: 18, fontWeight: '700'},
   });

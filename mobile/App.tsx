@@ -7,6 +7,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/app/navigation/AppNavigator';
 import { darkColors } from './src/shared/theme/colors';
+import { WallpaperProvider } from './src/shared/theme/Wallpaper';
 import { syncUsageStats } from './src/shared/usage/sync';
 
 export default function App() {
@@ -32,10 +33,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" />
-      <NavigationContainer theme={navigationTheme}>
-        <AppNavigator />
-      </NavigationContainer>
+      <WallpaperProvider>
+        <StatusBar barStyle="light-content" />
+        <NavigationContainer theme={navigationTheme}>
+          <AppNavigator />
+        </NavigationContainer>
+      </WallpaperProvider>
     </SafeAreaProvider>
   );
 }

@@ -19,6 +19,7 @@ import { ANALYSIS_DAYS } from '../../shared/config';
 import { openUsageAccessSettings } from '../../shared/native/usageStats';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
 import { GlassPanel, GlassSegmented } from '../../shared/ui/Glass';
 import type { GlassSegmentOption } from '../../shared/ui/Glass';
 import { syncUsageStats } from '../../shared/usage/sync';
@@ -139,15 +140,17 @@ export default function ProfileScreen() {
     focusMaxSeconds > 0 && focusMaxSeconds < 3600 ? '分钟' : '小时';
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + 20,
-          paddingBottom: insets.bottom + 150,
-        },
-      ]}
+    <View style={styles.container}>
+      <WallpaperBackdrop />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 20,
+            paddingBottom: insets.bottom + 150,
+          },
+        ]}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -374,6 +377,7 @@ export default function ProfileScreen() {
         </>
       )}
     </ScrollView>
+    </View>
   );
 }
 
@@ -381,6 +385,7 @@ export default function ProfileScreen() {
 function makeStyles(colors: AppColors) {
   return StyleSheet.create({
     container: {flex: 1, backgroundColor: colors.background},
+    scroll: {flex: 1, zIndex: 1, backgroundColor: 'transparent'},
     content: {paddingHorizontal: 20},
     pageHeader: {marginBottom: 20},
     kicker: {

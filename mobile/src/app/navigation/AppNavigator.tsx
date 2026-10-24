@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EntryScreen } from '../../features/entry';
 import { ProfileScreen } from '../../features/profile';
+import { SettingsScreen } from '../../features/settings';
 import { useAppColors } from '../../shared/theme/colors';
 import { GlassPanel } from '../../shared/ui/Glass';
 import PracticeScreen from '../screens/PracticeScreen';
@@ -33,9 +34,10 @@ const TAB_ICONS: Record<keyof RootTabParamList, string> = {
   录入: '✎',
   练习: '≡',
   我的: '○',
+  设置: '⚙',
 };
 
-const TAB_ORDER: (keyof RootTabParamList)[] = ['录入', '练习', '我的'];
+const TAB_ORDER: (keyof RootTabParamList)[] = ['录入', '练习', '我的', '设置'];
 
 const DOCK_HEIGHT = 58;
 const DOCK_BOTTOM_GAP = 6;
@@ -95,6 +97,14 @@ function ProfileTab() {
   return (
     <SwipeableTab current="我的">
       <ProfileScreen />
+    </SwipeableTab>
+  );
+}
+
+function SettingsTab() {
+  return (
+    <SwipeableTab current="设置">
+      <SettingsScreen />
     </SwipeableTab>
   );
 }
@@ -194,6 +204,7 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="我的"
       tabBar={props => <DockTabBar {...props} />}
       screenOptions={{
         headerShown: true,
@@ -204,7 +215,11 @@ function MainTabs() {
         headerShadowVisible: false,
       }}
     >
-      <Tab.Screen name="录入" component={EntryTab} />
+      <Tab.Screen
+        name="录入"
+        component={EntryTab}
+        options={{headerShown: false}}
+      />
       <Tab.Screen
         name="练习"
         component={PracticeTab}
@@ -213,6 +228,11 @@ function MainTabs() {
       <Tab.Screen
         name="我的"
         component={ProfileTab}
+        options={{headerShown: false}}
+      />
+      <Tab.Screen
+        name="设置"
+        component={SettingsTab}
         options={{headerShown: false}}
       />
     </Tab.Navigator>
