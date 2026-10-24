@@ -282,3 +282,55 @@ def test_empty_analysis_returns_empty_arrays():
     assert data["summary"]["total_duration_seconds"] == 0
     assert data["group_comparison"]["my_rank"] == 0
 
+
+def test_choice_question_fields_are_stored():
+    now = _now()
+    payload = {
+        "error_id": "err_choice_1",
+        "device_id": DEVICE,
+        "subject": "数学",
+        "knowledge_point": "函数",
+        "content": "f(x)=x² 在 x=2 处的值是？",
+        "question_type": "choice",
+        "option_a": "1",
+        "option_b": "2",
+        "option_c": "4",
+        "option_d": "8",
+        "answer": "c",
+        "created_at": _iso(now),
+    }
+    created = client.post("/api/v1/errors", json=payload)
+    assert created.status_code == 201
+
+    item = next(
+        row
+        for row in client.get(
+            f"/api/v1/errors?device_id={DEVICE}&limit=10"
+        ).json()["items"]
+        if row["error_id"] == "err_choice_1"
+    )
+    assert item["question_type"] == "choice"
+    assert item["option_a"] == "1"
+    assert item["option_b"] == "2"
+    assert item["option_c"] == "4"
+    assert item["option_d"] == "8"
+    assert item["answer"] == "C"
+
+    invalid = client.post(
+        "/api/v1/errors",
+        json={
+            "error_id": "err_choice_invalid",
+            "device_id": DEVICE,
+            "subject": "数学",
+            "content": "缺选项",
+            "question_type": "choice",
+            "option_a": "1",
+            "option_b": "2",
+            "option_c": "3",
+            "answer": "A",
+            "created_at": _iso(now),
+        },
+    )
+    assert invalid.status_code == 422
+    assert "D" in invalid.json()["detail"]
+

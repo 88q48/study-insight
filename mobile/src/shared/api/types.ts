@@ -1,3 +1,5 @@
+export type QuestionType = 'choice' | 'fill';
+
 export interface ErrorItem {
   error_id: string;
   device_id: string;
@@ -7,8 +9,13 @@ export interface ErrorItem {
   content: string;
   /** 旧字段，后端会把它映射成 content */
   question_content?: string;
-  /** 答案 / 解析 */
+  /** 答案 / 解析；选择题存 A/B/C/D */
   answer: string;
+  question_type?: QuestionType;
+  option_a?: string;
+  option_b?: string;
+  option_c?: string;
+  option_d?: string;
   created_at: string;
   mastered: boolean;
   review_count: number;
@@ -40,6 +47,11 @@ export interface NewErrorPayload {
   knowledge_point: string;
   content: string;
   answer?: string;
+  question_type?: QuestionType;
+  option_a?: string;
+  option_b?: string;
+  option_c?: string;
+  option_d?: string;
   question_content?: string;
   created_at: string;
   mastered?: boolean;

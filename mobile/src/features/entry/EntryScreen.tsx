@@ -15,12 +15,27 @@ import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-nat
 import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
 
 import { createError } from '../../shared/api/client';
+import type { QuestionType } from '../../shared/api/types';
+import { CHOICE_KEYS } from '../../shared/domain/error';
+import type { ChoiceKey } from '../../shared/domain/error';
 
 export default function EntryScreen() {
   const [subject, setSubject] = useState('');
   const [knowledgePoint, setKnowledgePoint] = useState('');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [questionType, setQuestionType] = useState<QuestionType>('fill');
+  const [options, setOptions] = useState<Record<ChoiceKey, string>>({
+    A: '',
+    B: '',
+    C: '',
+    D: '',
+  });
+  const [correctOption, setCorrectOption] = useState<ChoiceKey | null>(null);
+
+  const updateOption = (key: ChoiceKey, value: string) => {
+    setOptions(current => ({...current, [key]: value}));
+  };
   
   // 状态管理
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +109,17 @@ export default function EntryScreen() {
       Alert.alert('提示', '科目和题目内容不能为空！');
       return;
     }
+    if (questionType === 'choice') {
+      const missing = CHOICE_KEYS.filter(key => !options[key].trim());
+      if (missing.length) {
+        Alert.alert('提示', `请填写选项 ${missing.join('、')}`);
+        return;
+      }
+      if (!correctOption) {
+        Alert.alert('提示', '请选择正确答案 A/B/C/D');
+        return;
+      }
+    }
     setIsSubmitting(true);
 
     const payload = {
@@ -101,7 +127,12 @@ export default function EntryScreen() {
       subject,
       knowledge_point: knowledgePoint || '未分类',
       content: question,
-      answer: answer.trim(),
+      answer: questionType === 'choice' ? correctOption ?? '' : answer.trim(),
+      question_type: questionType,
+      option_a: questionType === 'choice' ? options.A.trim() : '',
+      option_b: questionType === 'choice' ? options.B.trim() : '',
+      option_c: questionType === 'choice' ? options.C.trim() : '',
+      option_d: questionType === 'choice' ? options.D.trim() : '',
       question_content: question,
       created_at: new Date().toISOString(),
       mastered: false,
@@ -116,6 +147,9 @@ export default function EntryScreen() {
       setKnowledgePoint('');
       setQuestion('');
       setAnswer('');
+      setQuestionType('fill');
+      setOptions({A: '', B: '', C: '', D: ''});
+      setCorrectOption(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : '无法连接服务器';
       Alert.alert('失败', message);
@@ -148,6 +182,26 @@ export default function EntryScreen() {
           )}
         </TouchableOpacity>
 
+        <Text style={styles.label}>题型 *</Text>
+        <View style={styles.typeRow}>
+          <TouchableOpacity
+            style={[styles.typeBtn, questionType === 'choice' && styles.typeBtnActive]}
+            onPress={() => setQuestionType('choice')}
+          >
+            <Text style={[styles.typeBtnText, questionType === 'choice' && styles.typeBtnTextActive]}>
+              选择题
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeBtn, questionType === 'fill' && styles.typeBtnActive]}
+            onPress={() => setQuestionType('fill')}
+          >
+            <Text style={[styles.typeBtnText, questionType === 'fill' && styles.typeBtnTextActive]}>
+              填空题
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.label}>科目 *</Text>
         <TextInput 
           style={styles.input} 
@@ -174,15 +228,53 @@ export default function EntryScreen() {
           onChangeText={setQuestion} 
         />
 
-        <Text style={styles.label}>答案 / 解析</Text>
-        <TextInput 
-          style={[styles.input, { height: 80 }]} 
-          multiline 
-          textAlignVertical="top" 
-          placeholder="输入答案..." 
-          value={answer} 
-          onChangeText={setAnswer} 
-        />
+        {questionType === 'choice' ? (
+          <>
+            <Text style={styles.label}>选项 *</Text>
+            {CHOICE_KEYS.map(key => (
+              <View style={styles.optionRow} key={key}>
+                <View style={[styles.optionBadge, correctOption === key && styles.optionBadgeActive]}>
+                  <Text style={[styles.optionBadgeText, correctOption === key && styles.optionBadgeTextActive]}>
+                    {key}
+                  </Text>
+                </View>
+                <TextInput
+                  style={[styles.input, styles.optionInput]}
+                  placeholder={`选项 ${key}`}
+                  value={options[key]}
+                  onChangeText={value => updateOption(key, value)}
+                />
+              </View>
+            ))}
+
+            <Text style={styles.label}>正确答案 *</Text>
+            <View style={styles.correctRow}>
+              {CHOICE_KEYS.map(key => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.correctBtn, correctOption === key && styles.correctBtnActive]}
+                  onPress={() => setCorrectOption(key)}
+                >
+                  <Text style={[styles.correctBtnText, correctOption === key && styles.correctBtnTextActive]}>
+                    {key}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>答案 / 解析</Text>
+            <TextInput
+              style={[styles.input, { height: 80 }]}
+              multiline
+              textAlignVertical="top"
+              placeholder="输入答案..."
+              value={answer}
+              onChangeText={setAnswer}
+            />
+          </>
+        )}
 
         <TouchableOpacity 
           style={[styles.submitBtn, isSubmitting && { opacity: 0.5 }]} 
@@ -211,6 +303,45 @@ const styles = StyleSheet.create({
   },
   ocrBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   label: { fontSize: 16, fontWeight: '600', color: '#444', marginBottom: 8 },
+  typeRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  typeBtnActive: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+  typeBtnText: { fontSize: 15, fontWeight: '600', color: '#666' },
+  typeBtnTextActive: { color: '#fff' },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  optionBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionBadgeActive: { backgroundColor: '#34C759' },
+  optionBadgeText: { color: '#5B7CFA', fontWeight: 'bold' },
+  optionBadgeTextActive: { color: '#fff' },
+  optionInput: { flex: 1, marginBottom: 0 },
+  correctRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  correctBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  correctBtnActive: { backgroundColor: '#34C759', borderColor: '#34C759' },
+  correctBtnText: { fontSize: 16, fontWeight: 'bold', color: '#666' },
+  correctBtnTextActive: { color: '#fff' },
   input: { 
     backgroundColor: '#fff', 
     borderWidth: 1, 

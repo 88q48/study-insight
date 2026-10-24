@@ -89,7 +89,12 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   "subject": "数学",
   "knowledge_point": "导数与函数",
   "content": "题目内容",
-  "answer": "答案 / 解析",
+  "answer": "答案 / 解析；选择题填 A/B/C/D",
+  "question_type": "choice",
+  "option_a": "A 选项内容",
+  "option_b": "B 选项内容",
+  "option_c": "C 选项内容",
+  "option_d": "D 选项内容",
   "created_at": "2026-10-23T12:00:00Z",
   "mastered": false,
   "review_count": 0
@@ -97,6 +102,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - `content` 是题目，`answer` 是答案
+- `question_type` 为 `choice` 时，`option_a`~`option_d` 是四个选项，`answer` 存正确答案字母
+- `question_type` 为 `fill` 时，`answer` 是填空答案/解析
 - `question_content` 仍保留为旧字段兼容
 - 查询统一带 `device_id`，避免读到其他设备的数据
 

@@ -4,7 +4,12 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { fetchErrors } from '../../shared/api/client';
 import type { ErrorItem } from '../../shared/api/types';
-import { questionOf } from '../../shared/domain/error';
+import {
+  CHOICE_KEYS,
+  isChoiceQuestion,
+  optionOf,
+  questionOf,
+} from '../../shared/domain/error';
 
 export default function MistakesScreen() {
   const [data, setData] = useState<ErrorItem[]>([]);
@@ -53,11 +58,25 @@ export default function MistakesScreen() {
               <Text style={styles.subject}>
                 {item.subject || '未分类'} - {item.knowledge_point || '未知知识点'}
               </Text>
-              <Text style={styles.status}>
-                {item.mastered ? '已掌握' : '待复习'}
-              </Text>
+              <View style={styles.cardMeta}>
+                <Text style={styles.typeBadge}>
+                  {isChoiceQuestion(item) ? '选择题' : '填空题'}
+                </Text>
+                <Text style={styles.status}>
+                  {item.mastered ? '已掌握' : '待复习'}
+                </Text>
+              </View>
             </View>
             <Text style={styles.question}>题目：{questionOf(item) || '（未填写题目）'}</Text>
+            {isChoiceQuestion(item) && (
+              <View style={styles.optionsBox}>
+                {CHOICE_KEYS.map(key => (
+                  <Text key={key} style={styles.optionText}>
+                    {key}. {optionOf(item, key)}
+                  </Text>
+                ))}
+              </View>
+            )}
             <Text style={styles.answer}>答案：{item.answer || '（未填写答案）'}</Text>
           </View>
         )}
@@ -78,9 +97,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   subject: { fontSize: 14, color: '#007AFF', fontWeight: 'bold' },
+  typeBadge: {
+    fontSize: 11,
+    color: '#8A5A00',
+    backgroundColor: '#FFF4E0',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
   status: { fontSize: 12, color: '#999' },
   question: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 6 },
+  optionsBox: { marginBottom: 6, gap: 4 },
+  optionText: { fontSize: 14, color: '#444' },
   answer: { fontSize: 14, color: '#666' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999', fontSize: 16 },
 });

@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS error_record (
     knowledge_point TEXT NOT NULL,
     content         TEXT NOT NULL DEFAULT '',
     answer          TEXT NOT NULL DEFAULT '',
+    question_type   TEXT NOT NULL DEFAULT 'fill',
+    option_a        TEXT NOT NULL DEFAULT '',
+    option_b        TEXT NOT NULL DEFAULT '',
+    option_c        TEXT NOT NULL DEFAULT '',
+    option_d        TEXT NOT NULL DEFAULT '',
     created_at      TEXT NOT NULL,
     mastered        INTEGER NOT NULL DEFAULT 0,
     review_count    INTEGER NOT NULL DEFAULT 0,
@@ -86,12 +91,21 @@ def connection() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connection() as conn:
         conn.executescript(SCHEMA)
-        # 旧库补列：answer 是本轮手机端联调新增的字段。
+        # 旧库补列：手机端陆续新增的字段都在这里做兼容迁移。
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(error_record)")}
-        if "answer" not in columns:
-            conn.execute(
-                "ALTER TABLE error_record ADD COLUMN answer TEXT NOT NULL DEFAULT ''"
-            )
+        extra_columns = {
+            "answer": "TEXT NOT NULL DEFAULT ''",
+            "question_type": "TEXT NOT NULL DEFAULT 'fill'",
+            "option_a": "TEXT NOT NULL DEFAULT ''",
+            "option_b": "TEXT NOT NULL DEFAULT ''",
+            "option_c": "TEXT NOT NULL DEFAULT ''",
+            "option_d": "TEXT NOT NULL DEFAULT ''",
+        }
+        for name, definition in extra_columns.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE error_record ADD COLUMN {name} {definition}"
+                )
 
 
 def is_empty() -> bool:
@@ -122,6 +136,11 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
             record["knowledge_point"],
             record.get("content", ""),
             record.get("answer", ""),
+            record.get("question_type", "fill"),
+            record.get("option_a", ""),
+            record.get("option_b", ""),
+            record.get("option_c", ""),
+            record.get("option_d", ""),
             record["created_at"],
             int(bool(record.get("mastered"))),
             int(record.get("review_count", 0)),
@@ -136,8 +155,9 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
             """
             INSERT INTO error_record (
                 error_id, device_id, subject, knowledge_point, content, answer,
+                question_type, option_a, option_b, option_c, option_d,
                 created_at, mastered, review_count, mastered_at, received_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(error_id) DO NOTHING
             """,
             rows,
@@ -164,6 +184,11 @@ _UPDATE_COLUMNS = {
     "knowledge_point",
     "content",
     "answer",
+    "question_type",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
     "mastered",
     "review_count",
     "mastered_at",

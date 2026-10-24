@@ -20,7 +20,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -75,6 +75,11 @@ def _serialize_error(row: dict[str, Any]) -> dict[str, Any]:
         "content": row["content"],
         "question_content": row["content"],  # 兼容旧客户端
         "answer": row.get("answer", ""),
+        "question_type": row.get("question_type", "fill"),
+        "option_a": row.get("option_a", ""),
+        "option_b": row.get("option_b", ""),
+        "option_c": row.get("option_c", ""),
+        "option_d": row.get("option_d", ""),
         "created_at": row["created_at"],
         "mastered": bool(row["mastered"]),
         "review_count": row["review_count"],
@@ -104,6 +109,11 @@ class ErrorIn(BaseModel):
     knowledge_point: str | None = None    # 知识点，空则归入 "未分类"
     content: str | None = None            # 题目内容（正式字段）
     answer: str | None = None             # 答案 / 解析（可选）
+    question_type: Literal["choice", "fill"] = "fill"  # choice=选择题，fill=填空题
+    option_a: str | None = None           # 选择题选项 A
+    option_b: str | None = None           # 选择题选项 B
+    option_c: str | None = None           # 选择题选项 C
+    option_d: str | None = None           # 选择题选项 D
     question_content: str | None = None   # 旧字段，兼容客户端已发出的请求
     created_at: datetime | None = None    # 不传时用服务器当前时间
     mastered: bool = False
@@ -124,6 +134,32 @@ def upload_error(payload: ErrorIn, response: Response):
     knowledge_point = (payload.knowledge_point or "").strip() or "未分类"
     content = (payload.content or payload.question_content or "").strip()
     answer = (payload.answer or "").strip()
+    question_type = payload.question_type
+    options = {
+        "option_a": (payload.option_a or "").strip(),
+        "option_b": (payload.option_b or "").strip(),
+        "option_c": (payload.option_c or "").strip(),
+        "option_d": (payload.option_d or "").strip(),
+    }
+    if question_type == "choice":
+        missing = [
+            key.removeprefix("option_").upper()
+            for key, value in options.items()
+            if not value
+        ]
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail=f"选择题缺少选项：{', '.join(missing)}",
+            )
+        answer = answer.upper()
+        if answer not in {"A", "B", "C", "D"}:
+            raise HTTPException(
+                status_code=422,
+                detail="选择题的 answer 必须是 A/B/C/D 之一",
+            )
+    else:
+        options = {key: "" for key in options}
     error_id = (payload.error_id or "").strip() or _new_error_id()
     created_at = _to_utc_iso(payload.created_at)
     mastered = bool(payload.mastered)
@@ -136,6 +172,8 @@ def upload_error(payload: ErrorIn, response: Response):
         "knowledge_point": knowledge_point,
         "content": content,
         "answer": answer,
+        "question_type": question_type,
+        **options,
         "created_at": created_at,
         "mastered": mastered,
         "review_count": payload.review_count,

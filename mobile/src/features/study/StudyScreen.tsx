@@ -14,7 +14,13 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { fetchErrors, markMastered } from '../../shared/api/client';
 import type { ErrorItem } from '../../shared/api/types';
-import { answerOf, questionOf } from '../../shared/domain/error';
+import {
+  CHOICE_KEYS,
+  answerOf,
+  isChoiceQuestion,
+  optionOf,
+  questionOf,
+} from '../../shared/domain/error';
 
 export default function StudyScreen() {
   const [questions, setQuestions] = useState<ErrorItem[]>([]);
@@ -74,6 +80,7 @@ export default function StudyScreen() {
 
   const correctAnswer = answerOf(currentQ);
   const hasAnswer = correctAnswer.trim().length > 0;
+  const isChoice = isChoiceQuestion(currentQ);
 
   // 检查答案
   const handleCheck = () => {
@@ -128,20 +135,54 @@ export default function StudyScreen() {
       <View style={styles.questionBox}>
         <Text style={styles.questionLabel}>题目：</Text>
         <Text style={styles.questionText}>{questionOf(currentQ) || '（未填写题目）'}</Text>
+        {isChoice && (
+          <View style={styles.optionList}>
+            {CHOICE_KEYS.map(key => (
+              <Text key={key} style={styles.optionText}>
+                {key}. {optionOf(currentQ, key)}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* 作答区域 */}
       <View style={styles.answerBox}>
-        <TextInput
-          style={[
-            styles.input,
-            showResult && (isCorrect ? styles.inputCorrect : styles.inputWrong),
-          ]}
-          placeholder="在此输入你的答案..."
-          value={userAnswer}
-          onChangeText={setUserAnswer}
-          editable={!showResult} // 提交后不可再修改
-        />
+        {isChoice ? (
+          <View style={styles.choiceRow}>
+            {CHOICE_KEYS.map(key => {
+              const selected = userAnswer === key;
+              const rightOption = showResult && correctAnswer.toUpperCase() === key;
+              const wrongOption = showResult && selected && !isCorrect;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.choiceBtn,
+                    selected && styles.choiceBtnActive,
+                    rightOption && styles.choiceBtnCorrect,
+                    wrongOption && styles.choiceBtnWrong,
+                  ]}
+                  onPress={() => setUserAnswer(key)}
+                  disabled={showResult}
+                >
+                  <Text style={styles.choiceText}>{key}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <TextInput
+            style={[
+              styles.input,
+              showResult && (isCorrect ? styles.inputCorrect : styles.inputWrong),
+            ]}
+            placeholder="在此输入你的答案..."
+            value={userAnswer}
+            onChangeText={setUserAnswer}
+            editable={!showResult} // 提交后不可再修改
+          />
+        )}
 
         {!showResult ? (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleCheck}>
@@ -187,6 +228,22 @@ const styles = StyleSheet.create({
   questionBox: { backgroundColor: '#fff', padding: 20, borderRadius: 12, marginBottom: 20, elevation: 2, minHeight: 150 },
   questionLabel: { fontSize: 14, color: '#999', marginBottom: 10 },
   questionText: { fontSize: 20, fontWeight: 'bold', color: '#333', lineHeight: 30 },
+  optionList: { marginTop: 14, gap: 8 },
+  optionText: { fontSize: 16, color: '#444', lineHeight: 24 },
+  choiceRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  choiceBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  choiceBtnActive: { borderColor: '#007AFF', backgroundColor: '#EAF2FF' },
+  choiceBtnCorrect: { borderColor: '#34C759', backgroundColor: '#E9F9EF' },
+  choiceBtnWrong: { borderColor: '#FF3B30', backgroundColor: '#FDECEC' },
+  choiceText: { textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: '#333' },
   
   answerBox: { backgroundColor: '#fff', padding: 20, borderRadius: 12, elevation: 2 },
   input: { backgroundColor: '#f8f9fa', borderWidth: 2, borderColor: '#eee', borderRadius: 8, padding: 15, fontSize: 16, marginBottom: 15 },
