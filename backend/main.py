@@ -31,28 +31,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-# 先读 .env 再 import 其它模块：ocr_router 在模块顶层就要取密钥，
-# 顺序反了会读到空值，OCR 直接降级成不可用。
-def _load_dotenv(path: Path) -> None:
-    """极简 .env 加载器，不引新依赖。
-
-    只处理 KEY=VALUE 和 # 注释，够用就行。
-    已存在的环境变量不覆盖，方便 CI 或临时 export 抢先。
-    """
-    if not path.is_file():
-        return
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, val = line.partition("=")
-        key = key.strip()
-        val = val.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = val
-
-
-_load_dotenv(Path(__file__).resolve().parent / ".env")
+# .env 由 dotenv_lite 负责加载，它在 import 时就会执行一次。
+# 这样无论谁先被 import（main 或 ocr_router），密钥都读得到。
+import dotenv_lite  # noqa: F401  导入即加载 .env
 
 import analytics
 import db

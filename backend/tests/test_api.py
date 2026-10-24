@@ -492,3 +492,92 @@ def test_attempt_without_answer_is_skipped():
     assert second.json()["error"]["attempt_count"] == 0
 
     client.delete(f"/api/v1/errors/err_no_answer?device_id={DEVICE}")
+
+
+# ---------- OCR：错误分类 ----------
+# 这几条锁的是「报错要能一眼看出该找谁」：
+# 凭据失效去找后端改 .env，额度超限等明天，图片不行重拍。
+# 用假的 client 顶掉真实百度调用，不消耗额度、不依赖网络。
+
+
+class _FakeBaidu:
+    def __init__(self, result):
+        self._result = result
+
+    def basicGeneral(self, _bytes):
+        return self._result
+
+
+def test_ocr_parse_without_credentials_returns_503(monkeypatch):
+    import ocr_router
+
+    monkeypatch.setattr(ocr_router, "client", None)
+    resp = client.post(
+        "/api/v1/ocr/parse",
+        files={"file": ("a.jpg", b"fake-bytes", "image/jpeg")},
+    )
+    assert resp.status_code == 503
+    assert "密钥" in resp.json()["detail"]
+
+
+def test_ocr_credential_error_maps_to_503(monkeypatch):
+    import ocr_router
+
+    monkeypatch.setattr(
+        ocr_router,
+        "client",
+        _FakeBaidu({"error_code": 14, "error_msg": "IAM Certification failed"}),
+    )
+    resp = client.post(
+        "/api/v1/ocr/parse",
+        files={"file": ("a.jpg", b"fake-bytes", "image/jpeg")},
+    )
+    # 关键是别被包成 500：原始实现 raise 后又 except 住，前端只会看到
+    # 「OCR服务异常: 400: 百度OCR报错...」这种三层嵌套，看不出问题在哪
+    assert resp.status_code == 503
+    assert "凭据无效" in resp.json()["detail"]
+
+
+def test_ocr_quota_error_maps_to_429(monkeypatch):
+    import ocr_router
+
+    monkeypatch.setattr(
+        ocr_router,
+        "client",
+        _FakeBaidu({"error_code": 17, "error_msg": "daily limit reached"}),
+    )
+    resp = client.post(
+        "/api/v1/ocr/parse",
+        files={"file": ("a.jpg", b"fake-bytes", "image/jpeg")},
+    )
+    assert resp.status_code == 429
+    assert "额度" in resp.json()["detail"]
+
+
+def test_ocr_success_joins_lines(monkeypatch):
+    import ocr_router
+
+    monkeypatch.setattr(
+        ocr_router,
+        "client",
+        _FakeBaidu({"words_result": [{"words": "第一行"}, {"words": "第二行"}]}),
+    )
+    resp = client.post(
+        "/api/v1/ocr/parse",
+        files={"file": ("a.jpg", b"fake-bytes", "image/jpeg")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["raw_text"] == "第一行\n第二行"
+    # 大模型没配（或调失败）时要落到本地规则，不能返回「未知科目」
+    assert body["parser"] in {"llm", "local"}
+
+
+def test_ocr_split_works_offline():
+    """纯文本切分不联网，任何环境都该成功。"""
+    resp = client.post(
+        "/api/v1/ocr/split",
+        json={"text": "数学\n7. 已知函数 f(x)=x^2，求 f(2)。\nA. 2   B. 4\n答案 4"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["subject"] == "数学"
