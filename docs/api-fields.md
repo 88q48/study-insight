@@ -155,6 +155,93 @@
 | `review_trend` | 每日新增 vs 消灭 |
 | `efficiency_trend` | 专注时长与错题产出的双轴图 |
 | `summary` / `trend` | 专注 Tab 指标卡 + 专注时长趋势 |
-| `app_ranking` | 应用类别占比 |
+| `app_ranking` | 暂无对应图表（原「应用类别占比」已移除，字段保留兼容） |
 | `group_comparison` | 个人 vs 群体 + 排名文案 |
 | `period` / `device_id` | 页面顶部说明 |
+
+---
+
+## 六、错题接口（录入 / 练习 / 删除）
+
+分析接口只负责「读」。错题的新增、修改、删除走下面这几条。
+
+### 6.1 接口一览
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| `POST` | `/api/v1/errors` | 录入一道错题 |
+| `GET` | `/api/v1/errors` | 查询错题列表（支持 `subject` 过滤） |
+| `GET` | `/api/v1/errors/subjects` | 练习页的科目列表 |
+| `GET` | `/api/v1/errors/practice` | 按做题次数优先的练习队列 |
+| `POST` | `/api/v1/errors/{error_id}/attempts` | 记录一次做题结果 |
+| `PATCH` | `/api/v1/errors/{error_id}` | 更新掌握状态 / 复习次数 |
+| `DELETE` | `/api/v1/errors/{error_id}` | 删除错题 |
+
+### 6.2 录入字段（POST /api/v1/errors）
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `error_id` | string | 否 | 不传由后端生成；客户端传了要保证唯一 |
+| `device_id` | string | 否 | 默认 `win_device_01` |
+| `subject` | string | **是** | 科目名，空值返回 422 |
+| `knowledge_point` | string | 否 | 空则归入「未分类」 |
+| `content` | string | 否 | 题目内容 |
+| `answer` | string | 否 | 答案；选择题需为 A/B/C/D |
+| `question_type` | string | 否 | `choice`（选择题）或 `fill`（填空题），默认 `fill` |
+| `option_a` ~ `option_d` | string | 选择题必填 | 四个选项，缺任一项返回 422 |
+| `created_at` | ISO 8601 | 否 | 不传用服务器时间 |
+| `mastered` | bool | 否 | 默认 `false` |
+| `review_count` | int | 否 | 默认 `0` |
+
+> `error_id` 建议带随机部分。只用毫秒时间戳时，同一毫秒连点两次会被后端
+> 当成重复写入，第二次静默丢弃。
+
+### 6.3 错题对象（所有接口统一返回这个结构）
+
+| 字段 | 说明 |
+|---|---|
+| `error_id` / `device_id` / `subject` / `knowledge_point` | 基本信息 |
+| `content` | 题目内容 |
+| `question_content` | 旧字段，等同 `content`，保留兼容 |
+| `answer` / `question_type` / `option_a` ~ `option_d` | 答案与题型 |
+| `created_at` / `mastered` / `review_count` / `mastered_at` | 时间与掌握状态 |
+| `attempt_count` | 累计做过几次 |
+| `correct_count` / `wrong_count` | 做对 / 做错次数 |
+| `accuracy` | 正确率（百分比，未做过为 0） |
+
+### 6.4 练习队列（GET /api/v1/errors/practice）
+
+```json
+{
+  "total": 10,
+  "subject": "数学",
+  "items": [ { "error_id": "...", "wrong_count": 3, "...": "..." } ]
+}
+```
+
+排序规则：做错次数多的排前面，同次数按最近一次做错时间倒序。
+`subject` 不传则跨科目。
+
+### 6.5 做题结果（POST /api/v1/errors/{error_id}/attempts）
+
+请求体：`{ "device_id": "win_device_01", "answer": "B" }`
+
+```json
+{
+  "status": "success",
+  "correct": true,
+  "error": { "attempt_count": 2, "correct_count": 1, "accuracy": 50.0 }
+}
+```
+
+选择题会自动判断题：把提交的 `answer` 与存下来的答案比对。
+填空题同样按字符串比对（去空格、忽略大小写）。
+题目没有答案时，`correct` 恒为 `false`。
+
+### 6.6 删除（DELETE /api/v1/errors/{error_id}?device_id=...）
+
+```json
+{ "status": "success", "deleted": true, "error_id": "err_xxx" }
+```
+
+只能删自己设备的错题，`device_id` 对不上返回 404。

@@ -123,7 +123,8 @@ export default function EntryScreen() {
     setIsSubmitting(true);
 
     const payload = {
-      error_id: `err_${Date.now()}`,
+      // 带随机后缀：只用毫秒时间戳，同一毫秒连点两次会被后端当成重复写入
+      error_id: `err_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       subject,
       knowledge_point: knowledgePoint || '未分类',
       content: question,
