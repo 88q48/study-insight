@@ -81,6 +81,11 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 
 release 变体使用项目自带的 debug keystore 签名，仅用于测试；正式上架前要换成自己的签名。
 
+产物在 `android/app/build/outputs/apk/release/app-release.apk`，
+装到手机后桌面图标显示「学情洞察」，版本号见 `android/app/build.gradle` 里的
+`versionName`。要给演示或评审传包时，复制出去重命名成
+`学情洞察-v<版本号>.apk`，别留一堆同后缀的文件让人选错。
+
 ## 数学公式
 
 题目、选项和答案通过 `shared/ui/MathText.tsx` 显示，采用衬线数学字体，并支持常见 LaTeX 写法：
