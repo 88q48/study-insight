@@ -1,9 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  BottomTabBarProps,
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
-import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import type {
+  BottomTabBarProps,
+  BottomTabNavigationProp,
+} from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
+import {
+  Keyboard,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EntryScreen } from '../../features/entry';
@@ -16,12 +27,73 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const TAB_ICONS: Record<keyof RootTabParamList, string> = {
   录入: '✎',
-  练习: '▤',
-  我的: '◯',
+  练习: '≡',
+  我的: '○',
 };
 
-const DOCK_HEIGHT = 44;
+const TAB_ORDER: (keyof RootTabParamList)[] = ['录入', '练习', '我的'];
+
+const DOCK_HEIGHT = 46;
 const DOCK_BOTTOM_GAP = 6;
+
+function SwipeableTab({
+  current,
+  children,
+}: {
+  current: keyof RootTabParamList;
+  children: React.ReactNode;
+}) {
+  const navigation =
+    useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, gesture) =>
+          Math.abs(gesture.dx) > 18 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.4,
+        onPanResponderRelease: (_, gesture) => {
+          const currentIndex = TAB_ORDER.indexOf(current);
+          if (gesture.dx < -55 && currentIndex < TAB_ORDER.length - 1) {
+            navigation.navigate(TAB_ORDER[currentIndex + 1]);
+          } else if (gesture.dx > 55 && currentIndex > 0) {
+            navigation.navigate(TAB_ORDER[currentIndex - 1]);
+          }
+        },
+      }),
+    [current, navigation],
+  );
+
+  return (
+    <View style={styles.swipeArea} {...panResponder.panHandlers}>
+      {children}
+    </View>
+  );
+}
+
+function EntryTab() {
+  return (
+    <SwipeableTab current="录入">
+      <EntryScreen />
+    </SwipeableTab>
+  );
+}
+
+function PracticeTab() {
+  return (
+    <SwipeableTab current="练习">
+      <PracticeScreen />
+    </SwipeableTab>
+  );
+}
+
+function ProfileTab() {
+  return (
+    <SwipeableTab current="我的">
+      <ProfileScreen />
+    </SwipeableTab>
+  );
+}
 
 function DockTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -90,9 +162,6 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
               >
                 {TAB_ICONS[route.name as keyof RootTabParamList]}
               </Text>
-              {focused && (
-                <View style={[styles.activeDot, {backgroundColor: colors.text}]} />
-              )}
             </Pressable>
           );
         })}
@@ -109,24 +178,26 @@ export default function AppNavigator() {
       tabBar={props => <DockTabBar {...props} />}
       screenOptions={{
         headerShown: true,
+        animation: 'shift',
         headerStyle: {backgroundColor: colors.surface},
         headerTintColor: colors.text,
         headerTitleStyle: {color: colors.text, fontWeight: '700'},
         headerShadowVisible: false,
       }}
     >
-      <Tab.Screen name="录入" component={EntryScreen} />
+      <Tab.Screen name="录入" component={EntryTab} />
       <Tab.Screen
         name="练习"
-        component={PracticeScreen}
+        component={PracticeTab}
         options={{headerShown: false}}
       />
-      <Tab.Screen name="我的" component={ProfileScreen} />
+      <Tab.Screen name="我的" component={ProfileTab} />
     </Tab.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
+  swipeArea: {flex: 1},
   dockWrap: {
     position: 'absolute',
     left: 0,
@@ -140,27 +211,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    gap: 6,
+    paddingHorizontal: 22,
+    gap: 18,
     shadowOpacity: 0.14,
     shadowRadius: 14,
     shadowOffset: {width: 0, height: 6},
     elevation: 9,
   },
   tabButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pressed: {opacity: 0.55},
-  icon: {fontSize: 19, lineHeight: 22, textAlign: 'center'},
-  activeDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
+  icon: {fontSize: 20, lineHeight: 23, textAlign: 'center'},
 });
