@@ -39,6 +39,8 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(errors="backslashreplace")
 
 app = FastAPI(title="学情洞察 API", version="0.2.0")
+from ocr_router import router as ocr_router
+app.include_router(ocr_router, prefix="/api/v1/ocr", tags=["OCR 识别"])
 
 # 联调期放开跨域，客户端和看板端都可以直接请求；上线前收敛成具体域名。
 app.add_middleware(
@@ -400,12 +402,7 @@ if __name__ == "__main__":
     # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
-<<<<<<< HEAD
         host="0.0.0.0", # 允许局域网和模拟器访问,
-=======
-        host="0.0.0.0",  # 监听所有网卡，模拟器和局域网真机才连得上
->>>>>>> 9c3b4d0d003b245518aff138ff2d679877543d44
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )
-
