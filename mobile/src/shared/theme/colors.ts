@@ -1,5 +1,3 @@
-import { useColorScheme } from 'react-native';
-
 export interface AppColors {
   background: string;
   surface: string;
@@ -22,57 +20,78 @@ export interface AppColors {
   shadow: string;
   placeholder: string;
   dock: string;
+  glass: string;
+  glassStrong: string;
+  glassBorder: string;
+  glassHighlight: string;
+  glassEdge: string;
 }
 
+/**
+ * 灰白液态玻璃主题。
+ * 产品固定使用浅色方案，避免系统深色模式破坏玻璃层的通透感。
+ */
 export const lightColors: AppColors = {
-  background: '#F4F5FF',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F3F6FC',
-  surfaceMuted: '#F8FAFF',
-  border: '#E8EEF8',
-  borderStrong: '#DDE5F2',
-  text: '#111827',
-  textSecondary: '#4B5563',
-  textMuted: '#8A94A6',
-  primary: '#3B6EF6',
-  primaryStrong: '#3B6EF6',
-  primarySoft: '#EAF1FF',
+  background: '#EDEFF2',
+  surface: 'rgba(255,255,255,0.58)',
+  surfaceAlt: '#E7E9ED',
+  surfaceMuted: 'rgba(255,255,255,0.34)',
+  border: 'rgba(255,255,255,0.72)',
+  borderStrong: 'rgba(173,179,188,0.44)',
+  text: '#202327',
+  textSecondary: '#555B63',
+  textMuted: '#8B9199',
+  primary: '#34383D',
+  primaryStrong: '#23262A',
+  primarySoft: 'rgba(255,255,255,0.46)',
   onPrimary: '#FFFFFF',
-  success: '#34C759',
-  successStrong: '#34C759',
-  successSoft: '#E9F9EF',
-  danger: '#FF3B30',
-  dangerSoft: '#FDECEC',
-  shadow: '#111827',
-  placeholder: '#9AA4B2',
-  dock: 'rgba(255,255,255,0.96)',
+  success: '#3D8B5F',
+  successStrong: '#337550',
+  successSoft: 'rgba(76,155,105,0.14)',
+  danger: '#B45454',
+  dangerSoft: 'rgba(180,84,84,0.12)',
+  shadow: '#5C626B',
+  placeholder: '#9DA3AA',
+  dock: 'rgba(255,255,255,0.56)',
+  glass: 'rgba(255,255,255,0.52)',
+  glassStrong: 'rgba(255,255,255,0.78)',
+  glassBorder: 'rgba(255,255,255,0.82)',
+  glassHighlight: 'rgba(255,255,255,0.72)',
+  glassEdge: 'rgba(255,255,255,0.92)',
 };
 
+/**
+ * 保留深色令牌，方便后续切回自动主题；当前产品以灰白浅色为准。
+ */
 export const darkColors: AppColors = {
-  background: '#0F1115',
-  surface: '#1B1E25',
-  surfaceAlt: '#14171D',
-  surfaceMuted: '#232730',
-  border: '#2B303B',
-  borderStrong: '#3A4150',
-  text: '#F3F5F8',
-  textSecondary: '#C2C8D2',
-  textMuted: '#8D96A5',
-  primary: '#8AA6FF',
-  primaryStrong: '#4266D8',
-  primarySoft: '#1D2B4A',
-  onPrimary: '#FFFFFF',
-  success: '#4ADE80',
-  successStrong: '#23894B',
-  successSoft: '#163322',
-  danger: '#FF7A72',
-  dangerSoft: '#3A1D20',
+  background: '#181A1D',
+  surface: 'rgba(61,64,69,0.58)',
+  surfaceAlt: '#15171A',
+  surfaceMuted: 'rgba(255,255,255,0.07)',
+  border: 'rgba(255,255,255,0.13)',
+  borderStrong: 'rgba(255,255,255,0.2)',
+  text: '#F2F3F5',
+  textSecondary: '#C4C8CE',
+  textMuted: '#8D939B',
+  primary: '#E4E6E9',
+  primaryStrong: '#E7E9EC',
+  primarySoft: 'rgba(255,255,255,0.1)',
+  onPrimary: '#1C1E21',
+  success: '#63B784',
+  successStrong: '#3F8E61',
+  successSoft: 'rgba(99,183,132,0.16)',
+  danger: '#D98282',
+  dangerSoft: 'rgba(217,130,130,0.14)',
   shadow: '#000000',
-  placeholder: '#6F7888',
-  dock: '#151517',
+  placeholder: '#777D85',
+  dock: 'rgba(44,47,51,0.62)',
+  glass: 'rgba(255,255,255,0.08)',
+  glassStrong: 'rgba(255,255,255,0.16)',
+  glassBorder: 'rgba(255,255,255,0.18)',
+  glassHighlight: 'rgba(255,255,255,0.16)',
+  glassEdge: 'rgba(255,255,255,0.24)',
 };
 
 export function useAppColors(): AppColors {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? darkColors : lightColors;
+  return lightColors;
 }

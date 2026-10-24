@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EntryScreen } from '../../features/entry';
 import { ProfileScreen } from '../../features/profile';
 import { useAppColors } from '../../shared/theme/colors';
+import { GlassPanel } from '../../shared/ui/Glass';
 import PracticeScreen from '../screens/PracticeScreen';
 import PracticeSessionScreen from '../screens/PracticeSessionScreen';
 import type { RootStackParamList, RootTabParamList } from './types';
@@ -36,7 +37,7 @@ const TAB_ICONS: Record<keyof RootTabParamList, string> = {
 
 const TAB_ORDER: (keyof RootTabParamList)[] = ['录入', '练习', '我的'];
 
-const DOCK_HEIGHT = 46;
+const DOCK_HEIGHT = 58;
 const DOCK_BOTTOM_GAP = 6;
 
 function SwipeableTab({
@@ -123,17 +124,15 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.dockWrap, {paddingBottom: insets.bottom + DOCK_BOTTOM_GAP}]}
+      style={[
+        styles.dockWrap,
+        {paddingBottom: Math.max(insets.bottom, 8) + DOCK_BOTTOM_GAP},
+      ]}
     >
-      <View
-        style={[
-          styles.dock,
-          {
-            backgroundColor: colors.dock,
-            borderColor: colors.border,
-            shadowColor: colors.shadow,
-          },
-        ]}
+      <GlassPanel
+        radius={DOCK_HEIGHT / 2}
+        tone="strong"
+        contentStyle={styles.dock}
       >
         {state.routes.map((route, index) => {
           const focused = state.index === index;
@@ -155,7 +154,11 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityLabel={route.name}
               accessibilityState={focused ? {selected: true} : {}}
               onPress={onPress}
-              style={({pressed}) => [styles.tabButton, pressed && styles.pressed]}
+              style={({pressed}) => [
+                styles.tabButton,
+                focused && styles.tabButtonActive,
+                pressed && styles.pressed,
+              ]}
             >
               <Text
                 style={[
@@ -165,10 +168,18 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
               >
                 {TAB_ICONS[route.name as keyof RootTabParamList]}
               </Text>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {color: focused ? colors.text : colors.textMuted},
+                ]}
+              >
+                {route.name}
+              </Text>
             </Pressable>
           );
         })}
-      </View>
+      </GlassPanel>
     </View>
   );
 }
@@ -182,7 +193,7 @@ function MainTabs() {
       screenOptions={{
         headerShown: true,
         animation: 'shift',
-        headerStyle: {backgroundColor: colors.surface},
+        headerStyle: {backgroundColor: colors.background},
         headerTintColor: colors.text,
         headerTitleStyle: {color: colors.text, fontWeight: '700'},
         headerShadowVisible: false,
@@ -233,24 +244,36 @@ const styles = StyleSheet.create({
   },
   dock: {
     height: DOCK_HEIGHT,
-    borderRadius: DOCK_HEIGHT / 2,
-    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 22,
-    gap: 18,
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-    shadowOffset: {width: 0, height: 6},
-    elevation: 9,
+    paddingHorizontal: 10,
+    gap: 4,
   },
   tabButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 62,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: {opacity: 0.55},
-  icon: {fontSize: 20, lineHeight: 23, textAlign: 'center'},
+  tabButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    borderColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#5C626B',
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 4},
+    elevation: 3,
+  },
+  pressed: {opacity: 0.62},
+  icon: {fontSize: 17, lineHeight: 19, textAlign: 'center'},
+  tabLabel: {
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginTop: 1,
+  },
 });
