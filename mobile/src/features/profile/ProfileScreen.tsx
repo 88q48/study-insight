@@ -1,100 +1,516 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  StyleSheet,
   ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { API_BASE_URL } from '../../shared/config';
+import { fetchAnalysis } from '../../shared/api/client';
+import type { Analysis } from '../../shared/api/types';
+import { ANALYSIS_DAYS } from '../../shared/config';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import { GlassPanel, GlassSegmented } from '../../shared/ui/Glass';
+import type { GlassSegmentOption } from '../../shared/ui/Glass';
+import {
+  AppUsageBars,
+  FocusTrendChart,
+  formatDuration,
+  ReviewTrendChart,
+  SubjectDistributionChart,
+  WeakPointBars,
+} from './ProfileCharts';
 
-// 看板由后端在 /dashboard 上直接提供，走同一个 host，不用另起服务。
-// 之前这里写死 8080，那个端口是单独跑静态服务器的做法，多开一个进程就多一个失败点。
-const DASHBOARD_URL = `${API_BASE_URL}/dashboard/`;
+type ProfileTab = 'errors' | 'focus';
+
+const TAB_OPTIONS: readonly GlassSegmentOption<ProfileTab>[] = [
+  {value: 'errors', label: '错题诊断'},
+  {value: 'focus', label: '专注效率'},
+];
+
+function formatPeriodDate(value?: string): string {
+  if (!value) {
+    return '--';
+  }
+  return value.slice(0, 10).replace(/-/g, '/');
+}
 
 export default function ProfileScreen() {
   const colors = useAppColors();
-  const styles = React.useMemo(() => makeStyles(colors), [colors]);
-  // 用 key 递增来强制 WebView 重新挂载，比 ref.reload() 稳，
-  // 也不会踩到 WebView 泛型推断的坑
-  const [reloadKey, setReloadKey] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const {width} = useWindowDimensions();
+  const chartWidth = Math.max(240, width - 76);
+
+  const [tab, setTab] = useState<ProfileTab>('errors');
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAnalysis = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const next = await fetchAnalysis(ANALYSIS_DAYS);
+      setAnalysis(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '学情数据加载失败');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadAnalysis();
+    }, [loadAnalysis]),
+  );
+
+  const stats = analysis?.error_stats;
+  const total = stats?.total_errors ?? 0;
+  const mastered = stats?.mastered_errors ?? 0;
+  const reviewing = stats?.reviewing_errors ?? 0;
+  const parsedRate = Number(stats?.mastery_rate ?? 0);
+  const rate = Number.isFinite(parsedRate)
+    ? Math.max(0, Math.min(100, parsedRate))
+    : 0;
+  const progressWidth = `${rate}%` as `${number}%`;
 
   return (
-    <View style={styles.container}>
-      {failed && (
-        <View style={styles.failBox}>
-          <Text style={styles.failTitle}>看板没加载出来</Text>
-          <Text style={styles.failHint}>先确认后端在跑：{API_BASE_URL}</Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => {
-              setFailed(false);
-              setReloadKey((k) => k + 1);
-            }}>
-            <Text style={styles.retryText}>重试</Text>
-          </TouchableOpacity>
-        </View>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom + 150,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            void loadAnalysis(true);
+          }}
+          tintColor={colors.text}
+          colors={[colors.text]}
+          progressBackgroundColor={colors.surface}
+        />
+      }>
+      <View style={styles.pageHeader}>
+        <Text style={styles.kicker}>学习档案 · 最近 {ANALYSIS_DAYS} 天</Text>
+        <Text style={styles.title}>我的</Text>
+        <Text style={styles.subtitle}>错题和专注，放在同一张学习地图上。</Text>
+      </View>
+
+      {!analysis ? (
+        <GlassPanel radius={28} contentStyle={styles.stateCard}>
+          {loading ? (
+            <>
+              <ActivityIndicator size="large" color={colors.text} />
+              <Text style={styles.stateTitle}>正在整理学情...</Text>
+              <Text style={styles.stateHint}>从本机学习记录生成图表</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.stateTitle}>学情还没加载出来</Text>
+              <Text style={styles.stateHint}>{error || '请确认后端服务已启动'}</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => {
+                  void loadAnalysis();
+                }}
+                style={[styles.retryButton, {backgroundColor: colors.text}]}>
+                <Text style={[styles.retryText, {color: colors.background}]}>
+                  重新加载
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </GlassPanel>
+      ) : (
+        <>
+
+
+
+          {error ? (
+            <View style={styles.inlineError}>
+              <Text numberOfLines={2} style={styles.inlineErrorText}>
+                刷新失败：{error}
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => {
+                  void loadAnalysis();
+                }}>
+                <Text style={[styles.inlineRetry, {color: colors.text}]}>
+                  重试
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          <GlassPanel radius={28} contentStyle={styles.overviewContent}>
+            <View style={styles.overviewTop}>
+              <View style={styles.overviewCopy}>
+                <Text style={styles.overviewLabel}>错题掌握率</Text>
+                <View style={styles.overviewValueRow}>
+                  <Text style={styles.overviewValue}>
+                    {Number.isInteger(rate) ? rate : rate.toFixed(1)}
+                  </Text>
+                  <Text style={styles.overviewPercent}>%</Text>
+                </View>
+                <Text style={styles.overviewNote}>
+                  {mastered} / {total} 道已经掌握
+                </Text>
+              </View>
+              <View style={styles.reviewBadge}>
+                <Text style={styles.reviewBadgeLabel}>待复习</Text>
+                <Text style={styles.reviewBadgeValue}>{reviewing}</Text>
+              </View>
+            </View>
+
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {width: progressWidth, backgroundColor: colors.success},
+                ]}
+              />
+            </View>
+
+            <View style={styles.metricRow}>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricValue}>{total}</Text>
+                <Text style={styles.metricLabel}>累计错题</Text>
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricValue}>{reviewing}</Text>
+                <Text style={styles.metricLabel}>待复习</Text>
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricValue}>{mastered}</Text>
+                <Text style={styles.metricLabel}>已掌握</Text>
+              </View>
+            </View>
+          </GlassPanel>
+
+          <GlassSegmented
+            options={TAB_OPTIONS}
+            value={tab}
+            onChange={setTab}
+            style={styles.segmented}
+          />
+
+          {tab === 'errors' ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>各科错题分布</Text>
+                <Text style={styles.sectionHint}>按累计错题</Text>
+              </View>
+              <GlassPanel radius={26} contentStyle={styles.cardContent}>
+                <SubjectDistributionChart
+                  items={analysis.subject_distribution || []}
+                  width={chartWidth}
+                />
+              </GlassPanel>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>近 {ANALYSIS_DAYS} 天走势</Text>
+                <Text style={styles.sectionHint}>新增 / 掌握</Text>
+              </View>
+              <GlassPanel radius={26} contentStyle={styles.cardContent}>
+                <ReviewTrendChart
+                  items={analysis.review_trend || []}
+                  width={chartWidth}
+                />
+              </GlassPanel>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>知识点薄弱榜</Text>
+                <Text style={styles.sectionHint}>优先补这些</Text>
+              </View>
+              <GlassPanel radius={26} contentStyle={styles.cardContent}>
+                <WeakPointBars items={analysis.knowledge_points || []} />
+              </GlassPanel>
+            </>
+          ) : (
+
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>每日专注时长</Text>
+                <Text style={styles.sectionHint}>单位：小时</Text>
+              </View>
+              <GlassPanel radius={26} contentStyle={styles.cardContent}>
+                <FocusTrendChart
+                  items={analysis.trend || []}
+                  width={chartWidth}
+                />
+              </GlassPanel>
+
+              <GlassPanel radius={26} contentStyle={styles.focusSummary}>
+                <View style={styles.focusMetric}>
+                  <Text style={styles.focusValue}>
+                    {formatDuration(analysis.summary?.total_duration_seconds || 0)}
+                  </Text>
+                  <Text style={styles.focusLabel}>总专注</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View style={styles.focusMetric}>
+                  <Text style={styles.focusValue}>
+                    {formatDuration(analysis.summary?.avg_daily_seconds || 0)}
+                  </Text>
+                  <Text style={styles.focusLabel}>日均</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View style={styles.focusMetric}>
+                  <Text style={styles.focusValue}>
+                    {formatDuration(analysis.summary?.p90_daily_seconds || 0)}
+                  </Text>
+                  <Text style={styles.focusLabel}>高位日</Text>
+                </View>
+              </GlassPanel>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>应用使用排行</Text>
+                <Text style={styles.sectionHint}>最近 {ANALYSIS_DAYS} 天</Text>
+              </View>
+              <GlassPanel radius={26} contentStyle={styles.cardContent}>
+                <AppUsageBars items={analysis.app_ranking || []} />
+              </GlassPanel>
+            </>
+          )}
+
+          <Text style={styles.footnote}>
+            统计周期：{formatPeriodDate(analysis.period?.start)} -{' '}
+            {formatPeriodDate(analysis.period?.end)} · 数据来自本机学习记录
+          </Text>
+        </>
       )}
-      <WebView
-        key={reloadKey}
-        source={{ uri: DASHBOARD_URL }}
-        style={styles.webview}
-        startInLoadingState
-        onError={() => setFailed(true)}
-        onHttpError={() => setFailed(true)}
-        renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>看板加载中...</Text>
-          </View>
-        )}
-        javaScriptEnabled
-        domStorageEnabled
-        scalesPageToFit
-        // 联调期关缓存：改了后端 config.js / 页面后，重进即生效，
-        // 不用清应用数据就能看到最新版本
-        cacheEnabled={false}
-        incognito={false}
-      />
-    </View>
+    </ScrollView>
   );
 }
 
+
 function makeStyles(colors: AppColors) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    webview: { flex: 1 },
-    loadingContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+    container: {flex: 1, backgroundColor: colors.background},
+    content: {paddingHorizontal: 20},
+    pageHeader: {marginBottom: 20},
+    kicker: {
+      fontSize: 13,
+      color: colors.textMuted,
+      letterSpacing: 1.1,
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 42,
+      lineHeight: 50,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    subtitle: {
+      marginTop: 6,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.textSecondary,
+    },
+    stateCard: {
+      minHeight: 210,
+      paddingHorizontal: 22,
+      paddingVertical: 28,
+      alignItems: 'center',
       justifyContent: 'center',
+    },
+    stateTitle: {
+      marginTop: 14,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    stateHint: {
+      marginTop: 6,
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    retryButton: {
+      marginTop: 18,
+      borderRadius: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    retryText: {fontSize: 13, fontWeight: '700'},
+    inlineError: {
+      flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.background,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 14,
     },
-    loadingText: { marginTop: 10, color: colors.textMuted, fontSize: 13 },
-    failBox: {
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      backgroundColor: colors.surfaceAlt,
+    inlineErrorText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.textSecondary,
+    },
+    inlineRetry: {fontSize: 12, fontWeight: '700'},
+    overviewContent: {padding: 20},
+    overviewTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+    },
+    overviewCopy: {flex: 1},
+    overviewLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.8,
+    },
+    overviewValueRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      marginTop: 2,
+    },
+    overviewValue: {
+      fontSize: 46,
+      lineHeight: 52,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: -1,
+    },
+    overviewPercent: {
+      marginLeft: 2,
+      marginBottom: 8,
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    overviewNote: {
+      marginTop: 4,
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    reviewBadge: {
+      minWidth: 80,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       alignItems: 'center',
     },
-    failTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-    failHint: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
-    retryBtn: {
-      marginTop: 8,
-      paddingVertical: 6,
-      paddingHorizontal: 18,
-      borderRadius: 8,
-      backgroundColor: colors.primary,
+    reviewBadgeLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
     },
-    retryText: { color: colors.background, fontSize: 13, fontWeight: '600' },
+    reviewBadgeValue: {
+      marginTop: 2,
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    progressTrack: {
+      height: 6,
+      borderRadius: 3,
+      overflow: 'hidden',
+      backgroundColor: colors.surfaceMuted,
+      marginTop: 18,
+    },
+    progressFill: {height: '100%', borderRadius: 3},
+    metricRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 18,
+    },
+    metricItem: {flex: 1, alignItems: 'center'},
+    metricValue: {
+      fontSize: 19,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    metricLabel: {
+      marginTop: 2,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    metricDivider: {
+      width: 1,
+      height: 24,
+      backgroundColor: colors.border,
+    },
+    segmented: {marginTop: 18, marginBottom: 4},
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 0.2,
+    },
+    sectionHint: {fontSize: 11, color: colors.textMuted, fontWeight: '500'},
+    cardContent: {padding: 16},
+    focusSummary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 18,
+      paddingHorizontal: 12,
+      marginTop: 12,
+    },
+    focusMetric: {flex: 1, alignItems: 'center'},
+    focusValue: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    focusLabel: {
+      marginTop: 3,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    footnote: {
+      marginTop: 18,
+      marginBottom: 4,
+      fontSize: 10,
+      lineHeight: 15,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
   });
 }
+

@@ -33,16 +33,75 @@ export interface ErrorStats {
   mastery_rate: number;
 }
 
+export interface FocusSummary {
+  total_duration_seconds: number;
+  avg_daily_seconds: number;
+  median_daily_seconds: number;
+  p90_daily_seconds: number;
+}
+
+export interface FocusTrendPoint {
+  date: string;
+  total_duration_seconds: number;
+}
+
+export interface AppRankingItem {
+  app_key: string;
+  app_name: string;
+  category: string;
+  duration_seconds: number;
+  percentage: number;
+}
+
+export interface GroupComparison {
+  group_avg_daily_seconds: number;
+  group_median_daily_seconds: number;
+  group_p90_daily_seconds: number;
+  my_rank: number;
+  group_size: number;
+}
+
+export interface SubjectDistributionItem {
+  subject: string;
+  error_count: number;
+  mastered_count: number;
+  reviewing_count: number;
+  mastery_rate: number;
+}
+
+export interface KnowledgePointStat {
+  subject: string;
+  knowledge_point: string;
+  error_count: number;
+  mastered_count: number;
+  reviewing_count: number;
+}
+
+export interface ReviewTrendPoint {
+  date: string;
+  new_added: number;
+  resolved: number;
+}
+
+export interface EfficiencyTrendPoint {
+  date: string;
+  focus_hours: number;
+  new_errors: number;
+  resolved_errors: number;
+}
+
 export interface Analysis {
   device_id: string;
+  period: {start: string; end: string};
+  summary: FocusSummary;
+  trend: FocusTrendPoint[];
+  app_ranking: AppRankingItem[];
+  group_comparison: GroupComparison;
   error_stats: ErrorStats;
-  knowledge_points: Array<{
-    subject: string;
-    knowledge_point: string;
-    error_count: number;
-    mastered_count: number;
-    reviewing_count: number;
-  }>;
+  subject_distribution: SubjectDistributionItem[];
+  knowledge_points: KnowledgePointStat[];
+  review_trend: ReviewTrendPoint[];
+  efficiency_trend: EfficiencyTrendPoint[];
 }
 
 export interface NewErrorPayload {
