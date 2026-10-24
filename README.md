@@ -45,7 +45,7 @@ streamlit run dashboard/app.py
 后端不在本机时，把 `127.0.0.1` 换成对方的内网 IP（如 `http://192.168.1.8:8010/api/v1`），
 Windows 防火墙需要放行 8010。
 
-### 当前状态（2026-10-18）
+### 当前状态（2026-10-24）
 
 后端已按正式契约返回全部 11 个字段，看板实测通过：
 
@@ -54,14 +54,14 @@ Windows 防火墙需要放行 8010。
 ✅ 接口已符合正式契约（11 个字段齐全）
 ```
 
-后端启动后会自动灌入演示数据（120 道错题、7 天使用记录），
+后端启动后会自动灌入演示数据（121 道错题、7 天使用记录），
 无需手动 seed。
 
 ### 数据来源会自动识别
 
 | 情况 | 页面表现 |
 |---|---|
-| `USE_MOCK=1`（默认） | 📦 演示数据 |
+| `USE_MOCK=1`（手动改） | 📦 演示数据 |
 | 后端正常 | 🔗 已连接后端 + 实际请求地址 |
 | 后端没开 | 🔌 后端未连通，自动退回演示数据，不会白屏 |
 
@@ -71,7 +71,7 @@ Windows 防火墙需要放行 8010。
 
 两套看板都支持直接切换，不用改代码：
 
-- **网页版**：页面右上角选择「设备」和「数据源」，切换后会自动刷新；也可以直接访问带参数的地址，例如 `http://127.0.0.1:8080/?device_id=android_emulator_01&source=api`
+- **网页版**：页面右上角选择「设备」和「数据源」，切换后会自动刷新；也可以直接访问带参数的地址，例如 `http://127.0.0.1:8080/?device_id=win_device_01&source=api`
 - **Streamlit**：左侧边栏选择「数据来源」「设备」和统计天数，支持填写自定义设备 ID。
 
 三端统一使用 `win_device_01`：看板默认读它，手机端 `DEVICE_ID` 也指向它，这样手机录的题在看板上直接可见。
@@ -113,6 +113,35 @@ python -m http.server 8080
 ```
 
 ---
+
+## 跑起来之前（后端）
+
+```bash
+cd backend
+pip install -r requirements.txt      # 装依赖
+cp .env.example .env                 # 配密钥，.env 不进 git
+python main.py                       # 起服务，默认 8010
+```
+
+`.env` 里需要填四组值，缺了只会让 OCR 不可用，其它接口照常：
+
+| 变量 | 用途 | 不填的后果 |
+|---|---|---|
+| `BAIDU_OCR_APP_ID`<br>`BAIDU_OCR_API_KEY`<br>`BAIDU_OCR_SECRET_KEY` | 拍照识别文字 | `POST /api/v1/ocr/parse` 返回 503 |
+| `DEEPSEEK_API_KEY` | 把 OCR 文字整理成科目/题型/题干/答案 | 自动退回本地规则切分，结果粗糙但可用 |
+
+拿到密钥的地方：
+- 百度 OCR <https://console.bce.baidu.com/ai/#/ai/ocr/overview/index>
+- DeepSeek <https://platform.deepseek.com/api_keys>
+
+⚠️ 密钥只放 `.env`，不要写进任何 `.py`。仓库是公开的，提交即泄露。
+
+客户端首次拉代码后要补装依赖：
+
+```bash
+cd mobile
+npm install        # 少了这步 WebView 会 bundle 失败
+```
 
 ## 快速开始
 
