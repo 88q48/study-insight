@@ -22,3 +22,10 @@ env/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 环境变量 / 密钥（云 OCR 的 AK/SK 之类都放这里，绝不提交）
+.env
+.env.*
+!.env.example
+*_secret.*
+secrets.json
