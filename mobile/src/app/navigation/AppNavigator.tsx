@@ -7,6 +7,7 @@ import type {
   BottomTabNavigationProp,
 } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   Keyboard,
   PanResponder,
@@ -21,9 +22,11 @@ import { EntryScreen } from '../../features/entry';
 import { ProfileScreen } from '../../features/profile';
 import { useAppColors } from '../../shared/theme/colors';
 import PracticeScreen from '../screens/PracticeScreen';
-import type { RootTabParamList } from './types';
+import PracticeSessionScreen from '../screens/PracticeSessionScreen';
+import type { RootStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 const TAB_ICONS: Record<keyof RootTabParamList, string> = {
   录入: '✎',
@@ -170,7 +173,7 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-export default function AppNavigator() {
+function MainTabs() {
   const colors = useAppColors();
 
   return (
@@ -193,6 +196,29 @@ export default function AppNavigator() {
       />
       <Tab.Screen name="我的" component={ProfileTab} />
     </Tab.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  const colors = useAppColors();
+
+  return (
+    <RootStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: {backgroundColor: colors.background},
+      }}
+    >
+      <RootStack.Screen name="Tabs" component={MainTabs} />
+      <RootStack.Screen
+        name="PracticeSession"
+        component={PracticeSessionScreen}
+        options={{
+          animation: 'slide_from_right',
+          gestureEnabled: false,
+        }}
+      />
+    </RootStack.Navigator>
   );
 }
 

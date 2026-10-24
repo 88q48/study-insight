@@ -14,16 +14,10 @@
  */
 window.CONFIG = {
   // true = 用 mock-data.js 里的数据；false = 请求后端
-  USE_MOCK: false,
+  USE_MOCK: true,
 
   // 后端接口前缀
-  //
-  // 留空（""）时自动按当前页面地址推导，这样下面几种打开方式都能直接用：
-  //   电脑浏览器   http://127.0.0.1:8080/           -> 同源
-  //   后端挂载     http://127.0.0.1:8010/dashboard  -> 同源
-  //   Android 模拟器 WebView  http://10.0.2.2:8010/dashboard -> 同源
-  // 写死地址在手机 WebView 里会失效：WebView 里的 127.0.0.1 指的是手机自己。
-  API_BASE_URL: "",
+ API_BASE_URL: "http://10.0.2.2:8010/api/v1",
 
   // 接口路径：留一个就够，填后端实际给的那条
   ANALYSIS_PATH: "/analysis",
@@ -32,7 +26,7 @@ window.CONFIG = {
   FALLBACK_TO_MOCK: true,
 
   // 当前设备标识
-  DEVICE_ID: "win_device_01",
+  DEVICE_ID: "android_emulator_01",
 
   // 统计天数
   DAYS: 7,
