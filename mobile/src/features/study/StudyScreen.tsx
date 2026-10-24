@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -67,7 +68,10 @@ export default function StudyScreen() {
   };
 
   return (
-    <View style={styles.setupContainer}>
+    <ScrollView
+      style={styles.setupContainer}
+      contentContainerStyle={styles.setupContent}
+      showsVerticalScrollIndicator={false}>
       <View style={styles.headingRow}>
         <View style={styles.headingCopy}>
           <Text style={styles.setupTitle}>开始练习</Text>
@@ -162,7 +166,7 @@ export default function StudyScreen() {
           />
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -170,6 +174,11 @@ const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     setupContainer: {
       flex: 1,
+    },
+    // 小屏（比如 1920x1080 的模拟器）高度不够时，开始按钮会被挤到屏幕外，
+    // 用 ScrollView + flexGrow 让它撑满可见区又能往下滚。
+    setupContent: {
+      flexGrow: 1,
       paddingHorizontal: 20,
       paddingTop: 2,
     },
