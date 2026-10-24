@@ -15,35 +15,31 @@ from datetime import datetime, timedelta, timezone
 random.seed(2026)
 
 
-# 科目 → (错题数, 已掌握数, [(知识点, 错题数), ...])
-# 每科的知识点错题数之和等于该科错题总数，保持自洽
+# 科目 → (错题数, 已掌握数, [(知识点, 错题数, 已掌握数), ...])
+#
+# 这份表跟后端真实库里 seed_bank.py 灌的题库一一对应：
+# 121 道错题 / 已掌握 85 / 待复习 36 / 掌握率 70.2%。
+# 演示时看板上「演示数据」和「真实后端」两个来源的数字完全一致，
+# 不会出现点一下数据源就变一套数字的情况。
+#
+# 每科的知识点错题数之和等于该科错题总数，已掌握数同样如此，保持自洽。
 SUBJECT_TABLE = [
-    ("数学", 45, 30, [
-        ("导数与函数", 15),
-        ("立体几何", 12),
-        ("数列", 10),
-        ("概率统计", 8),
+    ("数学", 46, 32, [
+        ("导数与函数", 16, 15),
+        ("立体几何", 12, 12),
+        ("数列", 10, 5),
+        ("概率统计", 8, 0),
     ]),
-    ("物理", 35, 20, [
-        ("电磁学", 13),
-        ("力学", 9),
-        ("光学", 7),
-        ("热学", 6),
+    ("英语", 40, 25, [
+        ("完形填空", 14, 14),
+        ("阅读理解", 13, 11),
+        ("语法填空", 13, 0),
     ]),
-    ("英语", 25, 18, [
-        ("完形填空", 9),
-        ("阅读理解", 8),
-        ("语法填空", 8),
-    ]),
-    ("化学", 20, 14, [
-        ("有机化学", 8),
-        ("化学反应原理", 7),
-        ("元素周期律", 5),
-    ]),
-    ("语文", 15, 9, [
-        ("文言文", 6),
-        ("现代文阅读", 5),
-        ("作文", 4),
+    ("物理", 35, 28, [
+        ("电磁学", 13, 13),
+        ("力学", 9, 9),
+        ("光学", 7, 6),
+        ("热学", 6, 0),
     ]),
 ]
 
@@ -78,13 +74,20 @@ def build_error_block(days=7, focus_trend=None):
 
     knowledge_points = []
     for name, _, _, points in SUBJECT_TABLE:
-        for point, count in points:
+        for point, err, mst in points:
             knowledge_points.append({
                 "subject": name,
                 "knowledge_point": point,
-                "error_count": count,
+                "error_count": err,
+                "mastered_count": mst,
+                "reviewing_count": err - mst,
             })
-    knowledge_points.sort(key=lambda x: x["error_count"], reverse=True)
+    # 和后端同一种排法：先看待复习多少，多的排前面；
+    # 待复习一样多时，累计错得多的优先。看板的「最该先处理」
+    # 直接取第一条，口径必须和后端一致。
+    knowledge_points.sort(
+        key=lambda x: (x["reviewing_count"], x["error_count"]), reverse=True
+    )
 
     # 最近 days 天的新增 / 消灭，日期与专注趋势对齐
     if focus_trend:

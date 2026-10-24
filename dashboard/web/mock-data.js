@@ -3,8 +3,8 @@
 window.MOCK_DATA = {
   "device_id": "win_device_01",
   "period": {
-    "start": "2026-10-11T00:00:00Z",
-    "end": "2026-10-17T23:59:59Z"
+    "start": "2026-10-18T00:00:00Z",
+    "end": "2026-10-24T23:59:59Z"
   },
   "summary": {
     "total_duration_seconds": 93535,
@@ -14,31 +14,31 @@ window.MOCK_DATA = {
   },
   "trend": [
     {
-      "date": "2026-10-11",
+      "date": "2026-10-18",
       "total_duration_seconds": 7201
     },
     {
-      "date": "2026-10-12",
+      "date": "2026-10-19",
       "total_duration_seconds": 13147
     },
     {
-      "date": "2026-10-13",
+      "date": "2026-10-20",
       "total_duration_seconds": 17046
     },
     {
-      "date": "2026-10-14",
+      "date": "2026-10-21",
       "total_duration_seconds": 15523
     },
     {
-      "date": "2026-10-15",
+      "date": "2026-10-22",
       "total_duration_seconds": 11597
     },
     {
-      "date": "2026-10-16",
+      "date": "2026-10-23",
       "total_duration_seconds": 14780
     },
     {
-      "date": "2026-10-17",
+      "date": "2026-10-24",
       "total_duration_seconds": 14241
     }
   ],
@@ -87,211 +87,189 @@ window.MOCK_DATA = {
     "group_size": 20
   },
   "error_stats": {
-    "total_errors": 140,
-    "mastered_errors": 91,
-    "reviewing_errors": 49,
-    "mastery_rate": 65.0
+    "total_errors": 121,
+    "mastered_errors": 85,
+    "reviewing_errors": 36,
+    "mastery_rate": 70.2
   },
   "subject_distribution": [
     {
       "subject": "数学",
-      "error_count": 45,
-      "mastered_count": 30,
+      "error_count": 46,
+      "mastered_count": 32,
+      "reviewing_count": 14,
+      "mastery_rate": 69.6
+    },
+    {
+      "subject": "英语",
+      "error_count": 40,
+      "mastered_count": 25,
       "reviewing_count": 15,
-      "mastery_rate": 66.7
+      "mastery_rate": 62.5
     },
     {
       "subject": "物理",
       "error_count": 35,
-      "mastered_count": 20,
-      "reviewing_count": 15,
-      "mastery_rate": 57.1
-    },
-    {
-      "subject": "英语",
-      "error_count": 25,
-      "mastered_count": 18,
+      "mastered_count": 28,
       "reviewing_count": 7,
-      "mastery_rate": 72.0
-    },
-    {
-      "subject": "化学",
-      "error_count": 20,
-      "mastered_count": 14,
-      "reviewing_count": 6,
-      "mastery_rate": 70.0
-    },
-    {
-      "subject": "语文",
-      "error_count": 15,
-      "mastered_count": 9,
-      "reviewing_count": 6,
-      "mastery_rate": 60.0
+      "mastery_rate": 80.0
     }
   ],
   "knowledge_points": [
     {
-      "subject": "数学",
-      "knowledge_point": "导数与函数",
-      "error_count": 15
-    },
-    {
-      "subject": "物理",
-      "knowledge_point": "电磁学",
-      "error_count": 13
-    },
-    {
-      "subject": "数学",
-      "knowledge_point": "立体几何",
-      "error_count": 12
-    },
-    {
-      "subject": "数学",
-      "knowledge_point": "数列",
-      "error_count": 10
-    },
-    {
-      "subject": "物理",
-      "knowledge_point": "力学",
-      "error_count": 9
-    },
-    {
       "subject": "英语",
-      "knowledge_point": "完形填空",
-      "error_count": 9
+      "knowledge_point": "语法填空",
+      "error_count": 13,
+      "mastered_count": 0,
+      "reviewing_count": 13
     },
     {
       "subject": "数学",
       "knowledge_point": "概率统计",
-      "error_count": 8
-    },
-    {
-      "subject": "英语",
-      "knowledge_point": "阅读理解",
-      "error_count": 8
-    },
-    {
-      "subject": "英语",
-      "knowledge_point": "语法填空",
-      "error_count": 8
-    },
-    {
-      "subject": "化学",
-      "knowledge_point": "有机化学",
-      "error_count": 8
-    },
-    {
-      "subject": "物理",
-      "knowledge_point": "光学",
-      "error_count": 7
-    },
-    {
-      "subject": "化学",
-      "knowledge_point": "化学反应原理",
-      "error_count": 7
+      "error_count": 8,
+      "mastered_count": 0,
+      "reviewing_count": 8
     },
     {
       "subject": "物理",
       "knowledge_point": "热学",
-      "error_count": 6
+      "error_count": 6,
+      "mastered_count": 0,
+      "reviewing_count": 6
     },
     {
-      "subject": "语文",
-      "knowledge_point": "文言文",
-      "error_count": 6
+      "subject": "数学",
+      "knowledge_point": "数列",
+      "error_count": 10,
+      "mastered_count": 5,
+      "reviewing_count": 5
     },
     {
-      "subject": "化学",
-      "knowledge_point": "元素周期律",
-      "error_count": 5
+      "subject": "英语",
+      "knowledge_point": "阅读理解",
+      "error_count": 13,
+      "mastered_count": 11,
+      "reviewing_count": 2
     },
     {
-      "subject": "语文",
-      "knowledge_point": "现代文阅读",
-      "error_count": 5
+      "subject": "数学",
+      "knowledge_point": "导数与函数",
+      "error_count": 16,
+      "mastered_count": 15,
+      "reviewing_count": 1
     },
     {
-      "subject": "语文",
-      "knowledge_point": "作文",
-      "error_count": 4
+      "subject": "物理",
+      "knowledge_point": "光学",
+      "error_count": 7,
+      "mastered_count": 6,
+      "reviewing_count": 1
+    },
+    {
+      "subject": "英语",
+      "knowledge_point": "完形填空",
+      "error_count": 14,
+      "mastered_count": 14,
+      "reviewing_count": 0
+    },
+    {
+      "subject": "物理",
+      "knowledge_point": "电磁学",
+      "error_count": 13,
+      "mastered_count": 13,
+      "reviewing_count": 0
+    },
+    {
+      "subject": "数学",
+      "knowledge_point": "立体几何",
+      "error_count": 12,
+      "mastered_count": 12,
+      "reviewing_count": 0
+    },
+    {
+      "subject": "物理",
+      "knowledge_point": "力学",
+      "error_count": 9,
+      "mastered_count": 9,
+      "reviewing_count": 0
     }
   ],
   "review_trend": [
     {
-      "date": "2026-10-11",
+      "date": "2026-10-18",
       "new_added": 7,
       "resolved": 4
     },
     {
-      "date": "2026-10-12",
+      "date": "2026-10-19",
       "new_added": 5,
       "resolved": 8
     },
     {
-      "date": "2026-10-13",
+      "date": "2026-10-20",
       "new_added": 6,
       "resolved": 5
     },
     {
-      "date": "2026-10-14",
+      "date": "2026-10-21",
       "new_added": 3,
       "resolved": 9
     },
     {
-      "date": "2026-10-15",
+      "date": "2026-10-22",
       "new_added": 4,
       "resolved": 6
     },
     {
-      "date": "2026-10-16",
+      "date": "2026-10-23",
       "new_added": 2,
       "resolved": 10
     },
     {
-      "date": "2026-10-17",
+      "date": "2026-10-24",
       "new_added": 3,
       "resolved": 7
     }
   ],
   "efficiency_trend": [
     {
-      "date": "2026-10-11",
+      "date": "2026-10-18",
       "focus_hours": 2.0,
       "new_errors": 7,
       "resolved_errors": 4
     },
     {
-      "date": "2026-10-12",
+      "date": "2026-10-19",
       "focus_hours": 3.65,
       "new_errors": 5,
       "resolved_errors": 8
     },
     {
-      "date": "2026-10-13",
+      "date": "2026-10-20",
       "focus_hours": 4.74,
       "new_errors": 6,
       "resolved_errors": 5
     },
     {
-      "date": "2026-10-14",
+      "date": "2026-10-21",
       "focus_hours": 4.31,
       "new_errors": 3,
       "resolved_errors": 9
     },
     {
-      "date": "2026-10-15",
+      "date": "2026-10-22",
       "focus_hours": 3.22,
       "new_errors": 4,
       "resolved_errors": 6
     },
     {
-      "date": "2026-10-16",
+      "date": "2026-10-23",
       "focus_hours": 4.11,
       "new_errors": 2,
       "resolved_errors": 10
     },
     {
-      "date": "2026-10-17",
+      "date": "2026-10-24",
       "focus_hours": 3.96,
       "new_errors": 3,
       "resolved_errors": 7
