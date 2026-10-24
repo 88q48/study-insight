@@ -622,3 +622,77 @@ def test_ocr_split_works_offline():
     )
     assert resp.status_code == 200
     assert resp.json()["subject"] == "数学"
+
+
+# ---------- OCR：多题切分 ----------
+# 一张试卷拍进去，原来会糊成一道。这几条锁住「按题号切成多题」，
+# 以及「答案按真实题号配」——卷子上的题号常常不从 1 开始。
+
+import ocr_split  # noqa: E402
+
+
+MULTI = "\n".join([
+    "数学 高三 第一次模拟考",
+    "7. 已知函数 f(x)=x^2-4x+3，则最小值为（  ）",
+    "A. -1    B. 0    C. 3    D. 4",
+    "8. 若等差数列前 n 项和为 Sn，a1=2，S5=30，求 a3。",
+    "12. 质量为 2 kg 的物体从 5 m 高处自由下落，求落地速度。",
+    "答案与解析",
+    "7. A",
+    "8. C",
+    "12. 10 m/s",
+])
+
+
+def test_split_multiple_questions():
+    blocks, answers, header = ocr_split.split_questions(MULTI)
+    assert len(blocks) == 3
+    assert "模拟考" in header
+    # 答案按卷面题号存，不是按切出来的顺序
+    assert answers[7] == "A"
+    assert answers[8] == "C"
+    assert answers[12] == "10 m/s"
+
+
+def test_split_keeps_options_per_question():
+    questions, _ = ocr_split.parse_many(MULTI)
+    first = questions[0]
+    assert first["subject"] == "数学"
+    assert first["question_type"] == "选择题"
+    assert set(first["options"]) == {"A", "B", "C", "D"}
+    assert first["answer"] == "A"
+    assert first["number"] == 7
+    # 第二题不该沾上第一题的选项
+    assert questions[1]["options"] == {}
+
+
+def test_split_handles_leading_blank_bracket():
+    """OCR 会把填空括号和题号读成一行：（  ）8. 若……"""
+    text = "（  ）8. 若等差数列前 n 项和为 Sn，a1=2，求 a3。\n答案：C"
+    questions, _ = ocr_split.parse_many(text)
+    assert len(questions) == 1
+    assert questions[0]["number"] == 8
+
+
+def test_question_number_survives_missing_left_paren():
+    """OCR 偶尔吞掉左括号，剩「（）8.」这种也要能认出题号。"""
+    text = "()8. 若等差数列前 n 项和为 Sn，求 a3。\n答案：C"
+    questions, _ = ocr_split.parse_many(text)
+    assert questions[0]["number"] == 8
+
+
+def test_split_single_question_unchanged():
+    """单题行为不能变：老调用方靠这个。"""
+    text = "1. 已知函数 f(x)=x^2，求 f(2)。\nA. 2   B. 4   C. 6   D. 8\n答案：B"
+    questions, _ = ocr_split.parse_many(text)
+    assert len(questions) == 1
+    assert questions[0]["answer"] == "B"
+    assert questions[0]["question_type"] == "选择题"
+
+
+def test_split_without_number_falls_back_to_one_question():
+    """没有题号的碎片不该丢内容。"""
+    text = "已知函数 f(x)=x^2，求 f(2) 的值。"
+    questions, _ = ocr_split.parse_many(text)
+    assert len(questions) == 1
+    assert "f(2)" in questions[0]["question_content"]

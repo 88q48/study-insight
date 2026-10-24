@@ -4,6 +4,7 @@ import json
 
 import dotenv_lite
 import ocr_parser
+import ocr_split
 
 router = APIRouter()
 
@@ -163,48 +164,89 @@ def parse_with_llm(text: str):
         return None
 
 
+def _structure_one(block: str, fallback_text: str) -> dict:
+    """把一道题的文本整理成填表字段。
+
+    优先让大模型精修（它更懂「哪句是题干、哪个是选项」）；
+    没配密钥、调用失败、或者题太多控制成本时，用本地规则。
+
+    不管走哪条，subject / question_type / question_content / answer
+    这四个字段一定有值，parser 标明来源。
+    """
+    local = ocr_parser.parse(block)
+
+    # 题数多的时候不逐题调大模型：又慢又费额度，本地规则够用
+    if llm_client and getattr(_structure_one, "_budget", None) is not False:
+        refined = parse_with_llm(block)
+        if refined:
+            merged = dict(local)
+            for key in ("subject", "question_type", "question_content", "answer"):
+                val = (refined.get(key) or "").strip()
+                if val:
+                    merged[key] = val
+            merged["parser"] = "llm"
+            return merged
+
+    out = dict(local)
+    out["parser"] = "local"
+    # 本地切不出题干时，至少把这段原文给出去，别让用户面对空白
+    if not out.get("question_content"):
+        out["question_content"] = block.strip() or fallback_text
+    return out
+
+
 @router.post("/parse")
 async def ocr_parse(file: UploadFile = File(...)):
-    # 1. 读取图片
+    """上传图片 → 识别文字 → 切成多道题 → 逐题结构化。
+
+    一次拍一整页试卷时，返回的 questions 里会有多道题；
+    只拍一道题时，questions 长度为 1。
+
+    顶层那几个字段（subject / question_type / question_content / answer）
+    保留成「第一题」，老的调用方不用改。
+    """
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="上传的图片为空")
-    
-    # 2. 百度 OCR 提取纯文本
-    raw_text = call_baidu_ocr(contents)
-    if not raw_text:
-        raise HTTPException(status_code=400, detail="未能识别出文字，请换一张清晰的图片")
-    
-    # 3. 文本清洗（去乱码）
-    cleaned_text = clean_ocr_text(raw_text)
-    
-    # 4. 尝试 DeepSeek 结构化
-    parsed_data = parse_with_llm(cleaned_text)
-    
-    # 5. 组装返回给前端的最终结果
-    if parsed_data:
-        subject = parsed_data.get("subject", "")
-        qtype = parsed_data.get("question_type", "")
-        content = parsed_data.get("question_content", "")
-        answer = parsed_data.get("answer", "")
-        source = "llm"
-    else:
-        # 大模型没配或调用失败，用本地规则切分兜底。
-        # 只认字符特征（科目关键词、题号、选项），不依赖网络和额度，
-        # 演示时外网断了也能出结果，不至于整页空白。
-        local = ocr_parser.parse(cleaned_text)
-        subject = local.get("subject", "")
-        qtype = local.get("question_type", "")
-        content = local.get("question_content", "") or cleaned_text
-        answer = local.get("answer", "")
-        source = "local"
 
+    raw_text = call_baidu_ocr(contents)
+    cleaned_text = clean_ocr_text(raw_text)
+    if not cleaned_text:
+        raise HTTPException(status_code=400, detail="这张图里没识别出文字，换一张试试。")
+
+    # 按题号切成多道。切不出来时整段当一题，内容不会丢。
+    blocks, answers, header = ocr_split.split_questions(cleaned_text)
+
+    questions: list[dict] = []
+    for seq, block in enumerate(blocks, start=1):
+        one = _structure_one(block, cleaned_text)
+        # 卷子上的题号可能从 7 开始，答案要按真实题号配，不能按顺序
+        number = ocr_split._take_number(block) or seq
+        if not one.get("answer") and number in answers:
+            one["answer"] = answers[number]
+            one["confidence"] = dict(one.get("confidence") or {}, answer=2)
+        if not one.get("subject") and header:
+            guess, _ = ocr_parser._classify_subject(header)
+            if guess:
+                one["subject"] = guess
+        one["index"] = seq
+        one["number"] = number
+        questions.append(one)
+
+    if not questions:
+        raise HTTPException(status_code=400, detail="没能从这段文字里切出题目。")
+
+    first = questions[0]
     return {
         "raw_text": cleaned_text,
-        "subject": subject,
-        "question_type": qtype,
-        "question_content": content,
-        "answer": answer,
-        # 前端可以据此提示「这条是本地规则识别的，请核对一下」
-        "parser": source,
+        # 多题结果
+        "questions": questions,
+        "question_count": len(questions),
+        "header": header,
+        # 兼容老调用方：等价于第一题
+        "subject": first.get("subject", ""),
+        "question_type": first.get("question_type", ""),
+        "question_content": first.get("question_content", ""),
+        "answer": first.get("answer", ""),
+        "parser": first.get("parser", "local"),
     }
