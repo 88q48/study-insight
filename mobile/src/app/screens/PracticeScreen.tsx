@@ -6,10 +6,8 @@ import { MistakesScreen } from '../../features/mistakes';
 import { StudyScreen } from '../../features/study';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
-import {
-  GlassBackdrop,
-  GlassSegmented,
-} from '../../shared/ui/Glass';
+import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
+import { GlassSegmented } from '../../shared/ui/Glass';
 import type { GlassSegmentOption } from '../../shared/ui/Glass';
 
 type PracticeMode = 'study' | 'mistakes';
@@ -27,7 +25,7 @@ export default function PracticeScreen() {
 
   return (
     <View style={styles.container}>
-      <GlassBackdrop />
+      <WallpaperBackdrop />
       <View style={[styles.inner, {paddingTop: insets.top + 20}]}>
         <View style={styles.headerBlock}>
           <Text style={styles.kicker}>每天进步一点点</Text>
@@ -52,7 +50,7 @@ export default function PracticeScreen() {
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     container: {flex: 1, backgroundColor: colors.background},
-    inner: {flex: 1},
+    inner: {flex: 1, zIndex: 1, backgroundColor: 'transparent'},
     headerBlock: {paddingHorizontal: 24, marginBottom: 16},
     kicker: {
       fontSize: 14,

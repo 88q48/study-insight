@@ -20,12 +20,13 @@ import TextRecognition, {
 } from '@react-native-ml-kit/text-recognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createError } from '../../shared/api/client';
+import { createError, parseOcrImage } from '../../shared/api/client';
 import type { QuestionType } from '../../shared/api/types';
 import { CHOICE_KEYS } from '../../shared/domain/error';
 import type { ChoiceKey } from '../../shared/domain/error';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
 import {
   GlassButton,
   GlassChip,
@@ -125,19 +126,49 @@ export default function EntryScreen() {
   const recognizeImage = async (imageUri: string) => {
     setIsOcrLoading(true);
     try {
-      const result = await TextRecognition.recognize(
-        imageUri,
-        TextRecognitionScript.CHINESE,
-      );
-      const text = (result.text || '').trim();
+      // 优先走后端云端 OCR（百度 OCR + DeepSeek 结构化），
+      // 后端不可用时再退回手机本地的 ML Kit，保证离线也能录题。
+      const cloud = await parseOcrImage(imageUri);
+      const text = (cloud.question_content || cloud.raw_text || '').trim();
       if (!text) {
         throw new Error('没有识别到文字，请换个角度再拍一张。');
       }
       setQuestion(text);
-      Alert.alert('识别完成', '题目已填入，请选择科目和知识点。');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '请手动输入题目';
-      Alert.alert('识别失败', message);
+      if (cloud.answer?.trim()) {
+        setAnswer(cloud.answer.trim());
+      }
+      const matchedSubject = SUBJECT_OPTIONS.find(item =>
+        cloud.subject?.includes(item),
+      );
+      if (matchedSubject) {
+        handleSubjectChange(matchedSubject);
+      }
+      Alert.alert(
+        '云端识别完成',
+        '题目已填入，请核对科目和知识点后保存。',
+      );
+    } catch (cloudError) {
+      const cloudMessage =
+        cloudError instanceof Error ? cloudError.message : '云端 OCR 不可用';
+      try {
+        const result = await TextRecognition.recognize(
+          imageUri,
+          TextRecognitionScript.CHINESE,
+        );
+        const text = (result.text || '').trim();
+        if (!text) {
+          throw new Error('没有识别到文字，请换个角度再拍一张。');
+        }
+        setQuestion(text);
+        Alert.alert(
+          '本地识别完成',
+          `云端 OCR 暂不可用（${cloudMessage}），已使用手机本地识别。`,
+        );
+      } catch (localError) {
+        const message =
+          localError instanceof Error ? localError.message : '请手动输入题目';
+        Alert.alert('识别失败', message);
+      }
     } finally {
       setIsOcrLoading(false);
     }
@@ -202,7 +233,9 @@ export default function EntryScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <WallpaperBackdrop />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           {
@@ -228,7 +261,10 @@ export default function EntryScreen() {
           style={styles.ocrButton}
         />
 
-        <GlassPanel radius={26} contentStyle={styles.cardContent}>
+        <GlassPanel
+          radius={26}
+          style={styles.cardGap}
+          contentStyle={styles.cardContent}>
           <Text style={styles.cardTitle}>题目分类</Text>
           <GlassSegmented
             options={TYPE_OPTIONS}
@@ -275,7 +311,10 @@ export default function EntryScreen() {
         </GlassPanel>
 
 
-        <GlassPanel radius={26} contentStyle={styles.cardContent}>
+        <GlassPanel
+          radius={26}
+          style={styles.cardGap}
+          contentStyle={styles.cardContent}>
           <Text style={styles.cardTitle}>题目与答案</Text>
 
           <Text style={styles.fieldLabel}>题目内容 *</Text>
@@ -378,6 +417,7 @@ export default function EntryScreen() {
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     container: {flex: 1, backgroundColor: colors.background},
+    scroll: {flex: 1, zIndex: 1, backgroundColor: 'transparent'},
     content: {paddingHorizontal: 20},
     pageHeader: {marginBottom: 18},
     kicker: {
@@ -402,6 +442,7 @@ const makeStyles = (colors: AppColors) =>
     },
     ocrButton: {marginBottom: 16},
     cardContent: {padding: 18},
+    cardGap: {marginBottom: 16},
     cardTitle: {
       fontSize: 18,
       fontWeight: '800',

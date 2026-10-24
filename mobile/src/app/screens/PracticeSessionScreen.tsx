@@ -36,6 +36,7 @@ import {
 import { playFeedbackSound } from '../../shared/feedback/sound';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
 import MathText from '../../shared/ui/MathText';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -240,6 +241,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
 
   return (
     <View style={styles.container}>
+      <WallpaperBackdrop />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -428,7 +430,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     container: {flex: 1, backgroundColor: colors.background},
-    keyboardView: {flex: 1},
+    keyboardView: {flex: 1, zIndex: 1, backgroundColor: 'transparent'},
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -7,12 +7,30 @@ import ocr_parser
 
 router = APIRouter()
 
-# 密钥一律从环境变量读，不写进源码。
-# 这两个服务都是按量计费的，密钥进 git 等于把钱包交出去。
-APP_ID = dotenv_lite.get("BAIDU_OCR_APP_ID")
-API_KEY = dotenv_lite.get("BAIDU_OCR_API_KEY")
-SECRET_KEY = dotenv_lite.get("BAIDU_OCR_SECRET_KEY")
-LLM_API_KEY = dotenv_lite.get("DEEPSEEK_API_KEY")
+# 当前演示环境把百度 OCR 凭据内置，开箱即用。
+# DeepSeek 密钥因为 GitHub 推送保护不能进仓库，从 backend/.env 读取。
+# 环境变量仍然优先，方便以后换账号；正式上线前建议全部改回只读环境变量。
+DEFAULT_BAIDU_OCR_APP_ID = "124538668"
+DEFAULT_BAIDU_OCR_API_KEY = "yOxFOsrvg6wOhJMCaHfihfvL"
+DEFAULT_BAIDU_OCR_SECRET_KEY = "YOf1cPUkjArQe29wPtyHaTi3XcnkSlVd"
+DEFAULT_DEEPSEEK_API_KEY = ""
+
+APP_ID = (
+    dotenv_lite.get("BAIDU_OCR_APP_ID")
+    or dotenv_lite.get("BAIDU_APP_ID")
+    or DEFAULT_BAIDU_OCR_APP_ID
+)
+API_KEY = (
+    dotenv_lite.get("BAIDU_OCR_API_KEY")
+    or dotenv_lite.get("BAIDU_API_KEY")
+    or DEFAULT_BAIDU_OCR_API_KEY
+)
+SECRET_KEY = (
+    dotenv_lite.get("BAIDU_OCR_SECRET_KEY")
+    or dotenv_lite.get("BAIDU_SECRET_KEY")
+    or DEFAULT_BAIDU_OCR_SECRET_KEY
+)
+LLM_API_KEY = dotenv_lite.get("DEEPSEEK_API_KEY") or DEFAULT_DEEPSEEK_API_KEY
 
 # 缺密钥时不要 import 对应 SDK 就崩，而是把功能降级成「不可用」，
 # 让后端整体还能起来，其他接口照常工作。

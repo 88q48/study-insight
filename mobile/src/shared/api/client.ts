@@ -122,6 +122,57 @@ export function deleteError(errorId: string) {
   );
 }
 
+/** 云端 OCR 返回结构（后端 /api/v1/ocr/parse）。 */
+export interface OcrParseResult {
+  raw_text: string;
+  subject: string;
+  question_type: string;
+  question_content: string;
+  answer: string;
+  parser: 'llm' | 'local' | string;
+}
+
+export async function parseOcrImage(imageUri: string): Promise<OcrParseResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  const form = new FormData();
+  form.append('file', {
+    uri: imageUri,
+    name: 'question.jpg',
+    type: 'image/jpeg',
+  } as any);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/ocr/parse`, {
+      method: 'POST',
+      body: form,
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let body: any = null;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      body = text;
+    }
+    if (!response.ok) {
+      const detail =
+        (body && (body.detail || body.message)) ||
+        text ||
+        `HTTP ${response.status}`;
+      throw new Error(String(detail));
+    }
+    return body as OcrParseResult;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('OCR 请求超时，请检查后端服务和网络');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /** 批量上传 Android UsageStats 采集到的应用使用记录。 */
 export function uploadUsageEvents(events: UsageEventUpload[]) {
   return request<{status: string; inserted: number; duplicates: number}>(
