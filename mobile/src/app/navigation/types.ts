@@ -1,3 +1,11 @@
+export type RootStackParamList = {
+  Tabs: undefined;
+  PracticeSession: {
+    subject?: string;
+    limit: number;
+  };
+};
+
 export type RootTabParamList = {
   录入: undefined;
   练习: undefined;
