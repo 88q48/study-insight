@@ -7,6 +7,8 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +16,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,11 +60,117 @@ function dedupeQuestions(items: ErrorItem[]): ErrorItem[] {
   });
 }
 
+type ActionVariant = 'ready' | 'correct' | 'neutral' | 'disabled';
+
+function AnimatedContinueButton({
+  label,
+  onPress,
+  disabled = false,
+  variant,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  variant: ActionVariant;
+}) {
+  const colors = useAppColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const scaleX = useRef(new Animated.Value(1)).current;
+  const scaleY = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const playBounce = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: -4,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          speed: 22,
+          bounciness: 10,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(scaleX, {
+          toValue: 1.06,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleX, {
+          toValue: 1,
+          speed: 22,
+          bounciness: 10,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(scaleY, {
+          toValue: 0.9,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleY, {
+          toValue: 1,
+          speed: 22,
+          bounciness: 10,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
+  const variantStyle =
+    variant === 'correct'
+      ? styles.continueBtnCorrect
+      : variant === 'ready'
+        ? styles.continueBtnReady
+        : variant === 'disabled'
+          ? styles.continueBtnDisabled
+          : styles.continueBtnNeutral;
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{translateY}, {scaleX}, {scaleY}],
+      }}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityState={{disabled}}
+        activeOpacity={0.82}
+        disabled={disabled}
+        onPress={() => {
+          if (disabled) {
+            return;
+          }
+          playBounce();
+          onPress();
+        }}
+        style={[styles.continueBtn, variantStyle]}>
+        <View pointerEvents="none" style={styles.buttonShine} />
+        <Text
+          style={[
+            styles.continueText,
+            variant === 'disabled' && styles.continueTextDisabled,
+          ]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function PracticeSessionScreen({route, navigation}: Props) {
   const {subject, limit} = route.params;
   const insets = useSafeAreaInsets();
   const colors = useAppColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const {width: screenWidth} = useWindowDimensions();
+  const slideX = useRef(new Animated.Value(0)).current;
+  const transitionRef = useRef(false);
 
   const [questions, setQuestions] = useState<ErrorItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,6 +246,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
 
     setIsCorrect(localCorrect);
     setShowResult(true);
+    Keyboard.dismiss();
     if (hasAnswer) {
       playFeedbackSound(localCorrect ? 'success' : 'error');
     }
@@ -183,9 +293,31 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setUserAnswer('');
-      setShowResult(false);
+      if (transitionRef.current) {
+        return;
+      }
+      transitionRef.current = true;
+      Animated.timing(slideX, {
+        toValue: -screenWidth,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(({finished}) => {
+        if (!finished) {
+          transitionRef.current = false;
+          return;
+        }
+        setCurrentIndex(currentIndex + 1);
+        setUserAnswer('');
+        setShowResult(false);
+        slideX.setValue(screenWidth);
+        Animated.timing(slideX, {
+          toValue: 0,
+          duration: 240,
+          useNativeDriver: true,
+        }).start(() => {
+          transitionRef.current = false;
+        });
+      });
       return;
     }
 
@@ -208,6 +340,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
         onPress={() => navigation.goBack()}
         style={styles.closeBtn}
       >
+        <View pointerEvents="none" style={styles.buttonShine} />
         <Text style={styles.closeIcon}>✕</Text>
       </TouchableOpacity>
       <View style={styles.progressTrack}>
@@ -258,6 +391,11 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
           </View>
         ) : (
           <>
+          <Animated.View
+            style={[
+              styles.transitionArea,
+              {transform: [{translateX: slideX}]},
+            ]}>
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[styles.content, {paddingBottom: 24}]}
@@ -296,6 +434,10 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                         rightOption && styles.optionCardCorrect,
                         wrongOption && styles.optionCardWrong,
                       ]}>
+                      <View
+                        pointerEvents="none"
+                        style={styles.buttonShine}
+                      />
                       <Text
                         style={[
                           styles.optionCardText,
@@ -386,41 +528,49 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                       你的答案：{userAnswer.trim() || '未作答'}
                     </Text>
                   </View>
+                  {isCorrect && hasAnswer ? (
+                    currentQ.mastered ? (
+                      <Text
+                        style={[
+                          styles.masteredText,
+                          styles.headerMasteredText,
+                        ]}>
+                        ✓ 已掌握
+                      </Text>
+                    ) : (
+                      <TouchableOpacity
+                        style={[
+                          styles.masteryButton,
+                          styles.headerMasteryButton,
+                          isMarkingMastered && styles.btnDisabled,
+                        ]}
+                        onPress={handleMarkMastered}
+                        disabled={isMarkingMastered}>
+                        <View
+                          pointerEvents="none"
+                          style={styles.buttonShine}
+                        />
+                        <Text style={styles.masteryButtonText}>
+                          {isMarkingMastered ? '标记中...' : '标记已掌握'}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  ) : null}
                 </View>
                 {!isCorrect && hasAnswer ? (
                   <Text style={styles.correctAnswerText}>
                     正确答案：{correctAnswer}
                   </Text>
                 ) : null}
-                {currentQ.mastered ? (
-                  <Text style={styles.masteredText}>✓ 已掌握</Text>
-                ) : isCorrect && hasAnswer ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.masteryButton,
-                      isMarkingMastered && styles.btnDisabled,
-                    ]}
-                    onPress={handleMarkMastered}
-                    disabled={isMarkingMastered}>
-                    <Text style={styles.masteryButtonText}>
-                      {isMarkingMastered ? '正在标记...' : '标记已掌握'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={[
-                    styles.continueBtn,
-                    hasAnswer && isCorrect
-                      ? styles.continueBtnCorrect
-                      : styles.continueBtnNeutral,
-                  ]}
-                  onPress={handleNext}>
-                  <Text style={styles.continueText}>
-                    {currentIndex < questions.length - 1
+                <AnimatedContinueButton
+                  label={
+                    currentIndex < questions.length - 1
                       ? '继续'
-                      : '完成本轮'}
-                  </Text>
-                </TouchableOpacity>
+                      : '完成本轮'
+                  }
+                  onPress={handleNext}
+                  variant={hasAnswer && isCorrect ? 'correct' : 'neutral'}
+                />
               </View>
             ) : (
               <View
@@ -428,25 +578,15 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                   styles.bottomBar,
                   {paddingBottom: insets.bottom + 10},
                 ]}>
-                <TouchableOpacity
-                  style={[
-                    styles.continueBtn,
-                    canSubmit
-                      ? styles.continueBtnReady
-                      : styles.continueBtnDisabled,
-                  ]}
+                <AnimatedContinueButton
+                  label="继续"
+                  onPress={handleCheck}
                   disabled={!canSubmit}
-                  onPress={handleCheck}>
-                  <Text
-                    style={[
-                      styles.continueText,
-                      !canSubmit && styles.continueTextDisabled,
-                    ]}>
-                    继续
-                  </Text>
-                </TouchableOpacity>
+                  variant={canSubmit ? 'ready' : 'disabled'}
+                />
               </View>
             )}
+          </Animated.View>
           </>
         )}
       </KeyboardAvoidingView>
@@ -466,10 +606,15 @@ const makeStyles = (colors: AppColors) =>
       paddingBottom: 10,
     },
     closeBtn: {
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      overflow: 'hidden',
     },
     closeIcon: {
       fontSize: 30,
@@ -513,6 +658,7 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '700',
     },
     scroll: {flex: 1},
+    transitionArea: {flex: 1},
     content: {paddingHorizontal: 20, paddingTop: 18, flexGrow: 1},
     center: {
       flex: 1,
@@ -634,15 +780,16 @@ const makeStyles = (colors: AppColors) =>
       gap: 10,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
+      borderColor: colors.glassBorder,
+      backgroundColor: colors.glass,
       paddingHorizontal: 18,
       paddingVertical: 16,
+      overflow: 'hidden',
     },
     optionCardSelected: {
       borderColor: colors.text,
       borderWidth: 2,
-      backgroundColor: colors.surfaceAlt,
+      backgroundColor: colors.glassStrong,
     },
     optionCardCorrect: {
       borderColor: colors.success,
@@ -800,18 +947,37 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 18,
+      borderWidth: 1,
+      overflow: 'hidden',
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      shadowOffset: {width: 0, height: 5},
+    },
+    buttonShine: {
+      position: 'absolute',
+      top: 0,
+      left: 12,
+      right: 12,
+      height: 1.5,
+      borderRadius: 1,
+      backgroundColor: 'rgba(255,255,255,0.48)',
     },
     continueBtnReady: {
-      backgroundColor: colors.primaryStrong,
+      backgroundColor: 'rgba(235,238,242,0.86)',
+      borderColor: 'rgba(255,255,255,0.62)',
     },
     continueBtnCorrect: {
-      backgroundColor: '#8ED847',
+      backgroundColor: 'rgba(142,216,71,0.82)',
+      borderColor: 'rgba(196,255,132,0.9)',
     },
     continueBtnNeutral: {
-      backgroundColor: colors.primaryStrong,
+      backgroundColor: 'rgba(235,238,242,0.86)',
+      borderColor: 'rgba(255,255,255,0.62)',
     },
     continueBtnDisabled: {
-      backgroundColor: '#2A3338',
+      backgroundColor: 'rgba(255,255,255,0.06)',
+      borderColor: colors.glassBorder,
     },
     continueText: {
       fontSize: 17,
@@ -858,8 +1024,20 @@ const makeStyles = (colors: AppColors) =>
       paddingVertical: 8,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.success,
-      backgroundColor: colors.successSoft,
+      borderColor: colors.glassBorder,
+      backgroundColor: colors.glass,
+      overflow: 'hidden',
+    },
+    headerMasteryButton: {
+      alignSelf: 'center',
+      marginLeft: 'auto',
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+    },
+    headerMasteredText: {
+      marginBottom: 0,
+      marginLeft: 'auto',
+      fontSize: 12,
     },
     masteryButtonText: {
       fontSize: 13,
