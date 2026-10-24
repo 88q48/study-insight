@@ -13,6 +13,7 @@ import {
   BAIDU_OCR_API_KEY,
   BAIDU_OCR_SECRET_KEY,
 } from './ocrKeys';
+import { parsePage } from './ocrSplit';
 
 /** 没配密钥时跳过百度，直接让调用方退回手机本地识别。 */
 const hasBaiduKeys = Boolean(BAIDU_OCR_API_KEY && BAIDU_OCR_SECRET_KEY);
@@ -20,8 +21,6 @@ const hasBaiduKeys = Boolean(BAIDU_OCR_API_KEY && BAIDU_OCR_SECRET_KEY);
 const TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token';
 const OCR_URL = 'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic';
 
-const CHOICE_KEYS = ['A', 'B', 'C', 'D'] as const;
-type ChoiceKey = (typeof CHOICE_KEYS)[number];
 
 export interface OcrQuestion {
   /** 在本次返回里的顺序，从 1 开始 */
@@ -221,90 +220,46 @@ export function cleanOcrText(text: string): string {
     .trim();
 }
 
-function detectSubject(text: string): string {
-  const rules: Array<[string, RegExp]> = [
-    ['数学', /(数学|函数|方程|不等式|导数|数列|几何|三角|概率|微积分|坐标)/],
-    ['物理', /(物理|受力|速度|加速度|电场|磁场|电路|电阻|牛顿|动量|光学|热学)/],
-    ['化学', /(化学|元素|分子|原子|溶液|氧化|还原|反应|有机|无机|摩尔)/],
-    ['生物', /(生物|细胞|遗传|基因|生态|光合|呼吸作用|蛋白质|染色体)/],
-    ['英语', /(英语|English|passage|choose the|grammar|reading|word)/i],
-    ['语文', /(语文|文言文|古诗|默写|阅读理解|作文|修辞|拼音|汉字)/],
-  ];
-  return rules.find(([, pattern]) => pattern.test(text))?.[0] || '';
-}
-
-function extractOptions(text: string): Partial<Record<ChoiceKey, string>> {
-  const found: Partial<Record<ChoiceKey, string>> = {};
-  text.split('\n').forEach(line => {
-    const match = /^\s*([A-D])\s*[.、．:：]\s*(.+?)\s*$/.exec(line);
-    if (!match) {
-      return;
-    }
-    const key = match[1] as ChoiceKey;
-    if (!found[key]) {
-      found[key] = match[2].trim();
-    }
-  });
-  return found;
-}
-
-function normalizeAnswer(rawAnswer: string): string {
-  const value = rawAnswer
-    .replace(/^[（(]\s*/, '')
-    .replace(/\s*[）)]\s*$/, '')
-    .trim();
-  const letter = /^([A-D])(?:[.、．:：]|\s|$)/i.exec(value);
-  return letter ? letter[1].toUpperCase() : value;
-}
-
-/** 本地规则解析 OCR 文本，不依赖大模型，离线也能用。 */
 export function parseOcrText(rawText: string): OcrParseResult {
   const text = cleanOcrText(rawText);
   if (!text) {
     throw new Error('没有识别到文字，请换个角度再拍一张');
   }
 
-  const answerMatch = /^(?:参考)?答案[：:]\s*(.+)$/m.exec(text);
-  const answer = normalizeAnswer(answerMatch?.[1] || '');
-  const options = extractOptions(text);
-  const optionKeys = CHOICE_KEYS.filter(key => Boolean(options[key]?.trim()));
-  const questionType: QuestionType =
-    optionKeys.length >= 2 ? 'choice' : 'fill';
-  const questionContent =
-    text.replace(/^(?:参考)?答案[：:].*$/m, '').trim() || text;
-  const subject = detectSubject(text);
-  const questionOptions: Record<string, string> = {};
-  optionKeys.forEach(key => {
-    questionOptions[key] = options[key] || '';
-  });
-  const question: OcrQuestion = {
-    index: 1,
-    number: 1,
-    subject,
-    question_type: questionType,
-    question_content: questionContent,
-    answer,
-    options: optionKeys.length ? questionOptions : undefined,
+  const parsed = parsePage(text);
+  if (!parsed.length) {
+    throw new Error('没有识别到文字，请换个角度再拍一张');
+  }
+
+  const questions: OcrQuestion[] = parsed.map((item, index) => ({
+    index: index + 1,
+    number: item.number || index + 1,
+    subject: item.subject,
+    question_type: item.questionTypeLabel,
+    question_content: item.questionContent,
+    answer: item.answer,
+    options: item.options as Record<string, string> | undefined,
     parser: 'local',
-  };
+  }));
+
+  const first = questions[0];
 
   return {
     raw_text: text,
-    subject,
-    question_type: questionType,
-    question_content: questionContent,
-    answer,
+    subject: first.subject,
+    question_type: parsed[0].questionType,
+    question_content: first.question_content,
+    answer: first.answer,
     parser: 'local',
-    option_a: options.A || '',
-    option_b: options.B || '',
-    option_c: options.C || '',
-    option_d: options.D || '',
-    questions: [question],
-    question_count: 1,
+    option_a: first.options?.A || '',
+    option_b: first.options?.B || '',
+    option_c: first.options?.C || '',
+    option_d: first.options?.D || '',
+    questions,
+    question_count: questions.length,
   };
 }
 
-/** 把 OCR 结果统一成录入页可消费的题目数组。 */
 export function toOcrQuestions(result: OcrParseResult): OcrQuestion[] {
   if (result.questions && result.questions.length) {
     return result.questions;
