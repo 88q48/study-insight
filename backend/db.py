@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS error_record (
     knowledge_point TEXT NOT NULL,
     content         TEXT NOT NULL DEFAULT '',
     answer          TEXT NOT NULL DEFAULT '',
+    question_type   TEXT NOT NULL DEFAULT 'fill',
+    option_a        TEXT NOT NULL DEFAULT '',
+    option_b        TEXT NOT NULL DEFAULT '',
+    option_c        TEXT NOT NULL DEFAULT '',
+    option_d        TEXT NOT NULL DEFAULT '',
+    attempt_count   INTEGER NOT NULL DEFAULT 0,
+    correct_count   INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL,
     mastered        INTEGER NOT NULL DEFAULT 0,
     review_count    INTEGER NOT NULL DEFAULT 0,
@@ -86,12 +93,23 @@ def connection() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connection() as conn:
         conn.executescript(SCHEMA)
-        # 旧库补列：answer 是本轮手机端联调新增的字段。
+        # 旧库补列：手机端陆续新增的字段都在这里做兼容迁移。
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(error_record)")}
-        if "answer" not in columns:
-            conn.execute(
-                "ALTER TABLE error_record ADD COLUMN answer TEXT NOT NULL DEFAULT ''"
-            )
+        extra_columns = {
+            "answer": "TEXT NOT NULL DEFAULT ''",
+            "question_type": "TEXT NOT NULL DEFAULT 'fill'",
+            "option_a": "TEXT NOT NULL DEFAULT ''",
+            "option_b": "TEXT NOT NULL DEFAULT ''",
+            "option_c": "TEXT NOT NULL DEFAULT ''",
+            "option_d": "TEXT NOT NULL DEFAULT ''",
+            "attempt_count": "INTEGER NOT NULL DEFAULT 0",
+            "correct_count": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for name, definition in extra_columns.items():
+            if name not in columns:
+                conn.execute(
+                    f"ALTER TABLE error_record ADD COLUMN {name} {definition}"
+                )
 
 
 def is_empty() -> bool:
@@ -122,6 +140,13 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
             record["knowledge_point"],
             record.get("content", ""),
             record.get("answer", ""),
+            record.get("question_type", "fill"),
+            record.get("option_a", ""),
+            record.get("option_b", ""),
+            record.get("option_c", ""),
+            record.get("option_d", ""),
+            int(record.get("attempt_count", 0)),
+            int(record.get("correct_count", 0)),
             record["created_at"],
             int(bool(record.get("mastered"))),
             int(record.get("review_count", 0)),
@@ -136,8 +161,10 @@ def insert_errors(records: list[dict[str, Any]]) -> tuple[int, int]:
             """
             INSERT INTO error_record (
                 error_id, device_id, subject, knowledge_point, content, answer,
+                question_type, option_a, option_b, option_c, option_d,
+                attempt_count, correct_count,
                 created_at, mastered, review_count, mastered_at, received_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(error_id) DO NOTHING
             """,
             rows,
@@ -159,11 +186,79 @@ def get_error(error_id: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def practice_errors(
+    device_id: str, subject: str | None = None, limit: int = 10
+) -> list[dict[str, Any]]:
+    """按错题次数优先返回练习队列：错得越多越靠前。"""
+    sql = "SELECT * FROM error_record WHERE device_id = ?"
+    params: list[Any] = [device_id]
+    if subject:
+        sql += " AND subject = ?"
+        params.append(subject)
+    sql += (
+        " ORDER BY (attempt_count - correct_count) DESC,"
+        " attempt_count DESC, created_at DESC, error_id DESC LIMIT ?"
+    )
+    params.append(limit)
+    with connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_subjects(device_id: str) -> list[dict[str, Any]]:
+    with connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT subject, COUNT(*) AS count
+            FROM error_record
+            WHERE device_id = ?
+            GROUP BY subject
+            ORDER BY count DESC, subject ASC
+            """,
+            (device_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def record_attempt(error_id: str, correct: bool, device_id: str) -> dict[str, Any] | None:
+    """原子累加一次做题结果，返回更新后的记录；设备不匹配返回 None。"""
+    with connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE error_record
+            SET attempt_count = attempt_count + 1,
+                correct_count = correct_count + ?
+            WHERE error_id = ? AND device_id = ?
+            """,
+            (1 if correct else 0, error_id, device_id),
+        )
+        if cursor.rowcount == 0:
+            return None
+        row = conn.execute(
+            "SELECT * FROM error_record WHERE error_id = ?", (error_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def delete_error(error_id: str, device_id: str) -> bool:
+    with connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM error_record WHERE error_id = ? AND device_id = ?",
+            (error_id, device_id),
+        )
+        return cursor.rowcount > 0
+
+
 _UPDATE_COLUMNS = {
     "subject",
     "knowledge_point",
     "content",
     "answer",
+    "question_type",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
     "mastered",
     "review_count",
     "mastered_at",

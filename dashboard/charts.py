@@ -304,7 +304,7 @@ def redo_plan_text(plan, error_stats=None):
         total = sum(x["suggest_count"] for x in plan)
         lines.append("")
         lines.append(
-            "合计建议重做 {} 道。做完一条在手机上标记已掌握，清单就短一条。".format(total)
+            "合计建议重做 {} 道。先做第 1 条，做完再看下一条。".format(total)
         )
 
     return NL.join(lines)

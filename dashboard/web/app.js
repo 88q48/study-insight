@@ -200,7 +200,7 @@
 
     var total = plan.reduce(function (s, x) { return s + x.suggest; }, 0);
     if (totalEl) {
-      totalEl.textContent = "合计建议重做 " + total + " 道。做完记得在手机上标记已掌握。";
+      totalEl.textContent = "合计建议重做 " + total + " 道。先做第 1 条，做完再看下一条。";
     }
   }
 
