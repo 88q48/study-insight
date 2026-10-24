@@ -108,7 +108,7 @@ export default function SettingsScreen() {
         <View style={styles.previewContent}>
           <Text style={styles.previewTitle}>我的</Text>
           <Text style={styles.previewHint}>
-            错题和专注，放在同一张学习地图上。
+            把错题和薄弱点，放在同一张学习地图上。
           </Text>
         </View>
       </View>
