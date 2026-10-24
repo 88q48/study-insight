@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 
 import analytics
 import db
+import ocr_routes
 
 # Windows 控制台/重定向默认是 GBK，题目里出现 ³、∑、emoji 等字符时 print 会抛
 # UnicodeEncodeError 导致接口 500。保留原编码，只把无法编码的字符转义输出。
@@ -52,6 +53,10 @@ app.add_middleware(
 _WEB_DIR = (Path(__file__).resolve().parent.parent / "dashboard" / "web")
 if _WEB_DIR.is_dir():
     app.mount("/dashboard", StaticFiles(directory=str(_WEB_DIR), html=True), name="dashboard")
+
+
+# OCR 解析：POST /api/v1/ocr/parse，把前端 OCR 出的长文本切成填表字段
+app.include_router(ocr_routes.router)
 
 
 DEFAULT_DEVICE = "win_device_01"
