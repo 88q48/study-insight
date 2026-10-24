@@ -6,7 +6,10 @@
 
 ```text
 src/
-├── app/navigation/          # 底部 Tab 与路由类型
+├── app/
+│   ├── navigation/          # 底部 Tab 与路由类型
+│   └── screens/
+│       └── PracticeScreen.tsx  # 学习 + 错题的组合页面
 ├── shared/
 │   ├── api/                 # 请求函数与接口类型
 │   ├── config/              # 后端地址、设备 ID
@@ -70,8 +73,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 页面
 
 - **录入**：拍照/相册选图，ML Kit 中文 OCR 识别题目；可手动补充科目、知识点、答案；提交到 `POST /api/v1/errors`
-- **学习**：拉取本设备待复习错题，逐题作答；支持「标记已掌握」，会调用 `PATCH /api/v1/errors/{error_id}`
-- **错题**：本设备错题列表，显示科目、知识点、题目、答案和掌握状态
+- **练习**：顶部用「学习 / 错题」分段切换
+  - 学习：拉取本设备待复习错题，逐题作答；支持「标记已掌握」，会调用 `PATCH /api/v1/errors/{error_id}`
+  - 错题：本设备错题列表，显示科目、知识点、题目、答案和掌握状态
 - **我的**：从 `/api/v1/devices/{device_id}/analysis` 读取总错题、已掌握、待复习和掌握率
 
 ## 接口字段

@@ -3,9 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
 import { EntryScreen } from '../../features/entry';
-import { StudyScreen } from '../../features/study';
-import { MistakesScreen } from '../../features/mistakes';
 import { ProfileScreen } from '../../features/profile';
+import PracticeScreen from '../screens/PracticeScreen';
 import type { RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -21,16 +20,14 @@ export default function AppNavigator() {
         tabBarIcon: ({ focused }) => {
           let icon = '';
           if (route.name === '录入') icon = '📝';
-          if (route.name === '学习') icon = '📖';
-          if (route.name === '错题') icon = '❌';
+          if (route.name === '练习') icon = '📚';
           if (route.name === '我的') icon = '👤';
           return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{icon}</Text>;
         },
       })}
     >
       <Tab.Screen name="录入" component={EntryScreen} />
-      <Tab.Screen name="学习" component={StudyScreen} />
-      <Tab.Screen name="错题" component={MistakesScreen} />
+      <Tab.Screen name="练习" component={PracticeScreen} />
       <Tab.Screen name="我的" component={ProfileScreen} />
     </Tab.Navigator>
   );
