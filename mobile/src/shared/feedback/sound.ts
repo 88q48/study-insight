@@ -14,6 +14,11 @@ const FeedbackSound = NativeModules.FeedbackSound as
  * 用轻量振动兜底，保证答题流程不中断。
  */
 export function playFeedbackSound(kind: 'success' | 'error') {
+  // 答对时给一个短震动，和音效一起形成正向反馈。
+  if (kind === 'success') {
+    Vibration.vibrate(30);
+  }
+
   if (Platform.OS === 'android' && FeedbackSound) {
     if (kind === 'success') {
       FeedbackSound.playSuccess();
@@ -23,7 +28,7 @@ export function playFeedbackSound(kind: 'success' | 'error') {
     return;
   }
 
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === 'ios' && kind === 'error') {
     Vibration.vibrate();
   }
 }
