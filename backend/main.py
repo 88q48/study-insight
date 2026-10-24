@@ -405,11 +405,7 @@ if __name__ == "__main__":
     # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
-<<<<<<< HEAD
-        host="0.0.0.0", # 允许局域网和模拟器访问,
-=======
         host="0.0.0.0",  # 监听所有网卡，模拟器和局域网真机才连得上
->>>>>>> 9c3b4d0d003b245518aff138ff2d679877543d44
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )
