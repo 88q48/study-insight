@@ -10,3 +10,7 @@ psutil==7.2.2
 
 # 需要做桌面 UI 时再装（当前采集用的是 ctypes + psutil，不依赖 Qt）
 # PySide6==6.12.0
+
+# ---------- 后端测试（backend/tests）----------
+pytest
+httpx          # fastapi.testclient 依赖它发请求

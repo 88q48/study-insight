@@ -69,7 +69,7 @@ export const darkColors: AppColors = {
   dangerSoft: '#3A1D20',
   shadow: '#000000',
   placeholder: '#6F7888',
-  dock: 'rgba(27,30,37,0.96)',
+  dock: '#151517',
 };
 
 export function useAppColors(): AppColors {
