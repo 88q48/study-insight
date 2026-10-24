@@ -82,7 +82,7 @@ export default function EntryScreen() {
   };
 
   const handleOCR = () => {
-    Alert.alert('OCR 拍照识别', '请选择图片来源', [
+    Alert.alert('拍照识别', '请选择图片来源', [
       {text: '取消', style: 'cancel'},
       {text: '拍照', onPress: () => openImagePicker('camera')},
       {text: '从相册选择', onPress: () => openImagePicker('library')},
@@ -147,9 +147,7 @@ export default function EntryScreen() {
         '云端识别完成',
         '题目已填入，请核对科目和知识点后保存。',
       );
-    } catch (cloudError) {
-      const cloudMessage =
-        cloudError instanceof Error ? cloudError.message : '云端 OCR 不可用';
+    } catch {
       try {
         const result = await TextRecognition.recognize(
           imageUri,
@@ -160,10 +158,7 @@ export default function EntryScreen() {
           throw new Error('没有识别到文字，请换个角度再拍一张。');
         }
         setQuestion(text);
-        Alert.alert(
-          '本地识别完成',
-          `云端 OCR 暂不可用（${cloudMessage}），已使用手机本地识别。`,
-        );
+        Alert.alert('本地识别完成', '云端暂不可用，已使用手机本地识别。');
       } catch (localError) {
         const message =
           localError instanceof Error ? localError.message : '请手动输入题目';
@@ -254,7 +249,7 @@ export default function EntryScreen() {
         </View>
 
         <GlassButton
-          label={isOcrLoading ? '正在识别...' : '📷 拍照识别题目 (OCR)'}
+          label={isOcrLoading ? '正在识别...' : '拍照识别题目'}
           tone="dark"
           onPress={handleOCR}
           disabled={isOcrLoading}
