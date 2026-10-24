@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 
 import analytics
 import db
+import ocr_routes
 
 # Windows 控制台/重定向默认是 GBK，题目里出现 ³、∑、emoji 等字符时 print 会抛
 # UnicodeEncodeError 导致接口 500。保留原编码，只把无法编码的字符转义输出。
@@ -54,6 +55,10 @@ app.add_middleware(
 _WEB_DIR = (Path(__file__).resolve().parent.parent / "dashboard" / "web")
 if _WEB_DIR.is_dir():
     app.mount("/dashboard", StaticFiles(directory=str(_WEB_DIR), html=True), name="dashboard")
+
+
+# OCR 解析：POST /api/v1/ocr/parse，把前端 OCR 出的长文本切成填表字段
+app.include_router(ocr_routes.router)
 
 
 DEFAULT_DEVICE = "win_device_01"
@@ -247,9 +252,18 @@ def record_error_attempt(error_id: str, payload: AttemptIn):
     if existing is None or existing["device_id"] != payload.device_id:
         raise HTTPException(status_code=404, detail="错题不存在")
 
-    correct = bool(existing["answer"]) and (
-        _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
-    )
+    # 题目本身没录答案时判不了对错。以前这里会当成「做错」，
+    # 导致这类题做多少次正确率都是 0%，也永远不会变成已掌握。
+    # 现在直接跳过统计，把情况如实告诉前端。
+    if not (existing["answer"] or "").strip():
+        return {
+            "status": "skipped",
+            "correct": None,
+            "reason": "这道题没有录入答案，无法判对错，本次作答未计入统计",
+            "error": _serialize_error(existing),
+        }
+
+    correct = _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
     updated = db.record_attempt(error_id, correct, payload.device_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="错题不存在")
@@ -402,7 +416,7 @@ if __name__ == "__main__":
     # 本地直接 `python main.py` 即可；看板端配置是 8010，所以默认也走 8010。
     uvicorn.run(
         "main:app",
-        host="0.0.0.0", # 允许局域网和模拟器访问,
+        host="0.0.0.0",  # 监听所有网卡，模拟器和局域网真机才连得上
         port=int(os.getenv("PORT", "8010")),
         reload=True,
     )

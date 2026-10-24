@@ -102,6 +102,47 @@
     return attempt(0);
   }
 
+  /* ---------- 数据归一化 ---------- */
+  // mock-data.js 和旧版后端的 knowledge_points 只有 error_count，
+  // 缺 mastered_count / reviewing_count，直接渲染会出现「还有 undefined 道」，
+  // 重做清单也会空掉。这里统一补齐，字段缺失时按总数反推。
+  function normalizeData(d) {
+    if (!d) { return d; }
+
+    (d.knowledge_points || []).forEach(function (p) {
+      var total = Number(p.error_count) || 0;
+      var mastered = p.mastered_count == null ? 0 : Number(p.mastered_count);
+      p.error_count = total;
+      p.mastered_count = mastered;
+      p.reviewing_count = p.reviewing_count == null
+        ? Math.max(total - mastered, 0)
+        : Number(p.reviewing_count) || 0;
+    });
+
+    (d.subject_distribution || []).forEach(function (s) {
+      s.error_count = Number(s.error_count) || 0;
+      s.mastered_count = Number(s.mastered_count) || 0;
+      if (s.reviewing_count == null) {
+        s.reviewing_count = Math.max(s.error_count - s.mastered_count, 0);
+      }
+      if (s.mastery_rate == null) {
+        s.mastery_rate = s.error_count
+          ? Math.round(s.mastered_count / s.error_count * 1000) / 10
+          : 0;
+      }
+    });
+
+    // 按待复习数降序，和「最该先处理」的说法保持一致
+    if (d.knowledge_points && d.knowledge_points.length) {
+      d.knowledge_points.sort(function (a, b) {
+        return (b.reviewing_count - a.reviewing_count) ||
+               (b.error_count - a.error_count);
+      });
+    }
+
+    return d;
+  }
+
   /* ---------- 图表容器 ---------- */
   function renderChart(id, option) {
     var el = document.getElementById(id);
@@ -116,15 +157,17 @@
   }
 
   /* ---------- 指标卡 ---------- */
-  function card(label, value) {
-    return '<div class="card"><div class="label">' + label +
+  // tone 用来区分指标语义：ok=已掌握、warn=待复习、key=核心比率
+  function card(label, value, tone) {
+    var cls = "card" + (tone ? " tone-" + tone : "");
+    return '<div class="' + cls + '"><div class="label">' + label +
            '</div><div class="value">' + value + "</div></div>";
   }
 
   function renderMetrics(elId, items) {
     var el = document.getElementById(elId);
     if (!el) { return; }
-    el.innerHTML = items.map(function (kv) { return card(kv[0], kv[1]); }).join("");
+    el.innerHTML = items.map(function (kv) { return card(kv[0], kv[1], kv[2]); }).join("");
   }
 
   function renderTips(elId, tips) {
@@ -226,40 +269,55 @@
     var err = d.error_stats;
 
     renderMetrics("error-metrics", [
-      ["累计错题", err.total_errors + " 道"],
-      ["已掌握", err.mastered_errors + " 道"],
-      ["待复习", err.reviewing_errors + " 道"],
-      ["掌握率", err.mastery_rate + "%"]
+      ["累计错题", err.total_errors + " 道", ""],
+      ["已掌握", err.mastered_errors + " 道", "ok"],
+      ["待复习", err.reviewing_errors + " 道", "warn"],
+      ["掌握率", err.mastery_rate + "%", "key"]
     ]);
 
-    // 改成真实的字段 knowledge_point_errors
-renderChart("chart-radar", window.Charts.radarError(d.knowledge_point_errors));
+    renderChart("chart-radar", window.Charts.radarError(d.subject_distribution));
     renderChart("chart-subject-mastery", window.Charts.barSubjectMastery(d.subject_distribution));
     renderChart("chart-knowledge", window.Charts.barKnowledge(d.knowledge_points, 10));
     renderChart("chart-funnel", window.Charts.funnelMastery(err));
     renderChart("chart-review", window.Charts.barReview(d.review_trend));
 
-    // 把 subject_distribution 改成 subject_errors
-    var subjects = d.subject_errors;
-    var weakest = subjects.reduce(function (a, b) {
-      return a.error_count >= b.error_count ? a : b;
-    });
-    var slowest = subjects.reduce(function (a, b) {
-      return a.mastery_rate <= b.mastery_rate ? a : b;
-    });
-    // 把 knowledge_points 改成 knowledge_point_errors
-var top = d.knowledge_point_errors[0];
+    // 字段名对齐后端正式契约：subject_distribution / knowledge_points
+    var subjects = d.subject_distribution || [];
+    var points = d.knowledge_points || [];
+    var tips = [];
 
-    renderTips("error-tips", [
-      "错题最多的是 <b>" + weakest.subject + "</b>，累计 " + weakest.error_count +
-        " 道，已掌握 " + weakest.mastered_count + " 道。",
-      "消化最慢的是 <b>" + slowest.subject + "</b>，掌握率 " + slowest.mastery_rate +
-        "%，优先安排复盘。",
-      "最薄弱的知识点是 <b>" + top.subject + " · " + top.knowledge_point + "</b>，" +
-        "错了 " + top.error_count + " 次。"
-    ]);
+    if (subjects.length) {
+      var weakest = subjects.reduce(function (a, b) {
+        return a.error_count >= b.error_count ? a : b;
+      });
+      var slowest = subjects.reduce(function (a, b) {
+        return a.mastery_rate <= b.mastery_rate ? a : b;
+      });
+      tips.push(
+        "错题最多的是 <b>" + weakest.subject + "</b>，累计 " + weakest.error_count +
+          " 道，已掌握 " + weakest.mastered_count + " 道。"
+      );
+      tips.push(
+        "消化最慢的是 <b>" + slowest.subject + "</b>，掌握率 " + slowest.mastery_rate +
+          "%，优先安排复盘。"
+      );
+    }
 
-    renderRedo(buildRedoPlan(d.knowledge_points, 5));
+    // knowledge_points 按待复习数降序，取第一条就是最该先处理的
+    if (points.length) {
+      var top = points[0];
+      tips.push(
+        "最该先处理的是 <b>" + top.subject + " · " + top.knowledge_point + "</b>，" +
+          "还有 " + top.reviewing_count + " 道没消化（累计错 " + top.error_count + " 道）。"
+      );
+    }
+
+    if (!tips.length) {
+      tips.push("还没有错题数据，先去手机端录一道题试试。");
+    }
+
+    renderTips("error-tips", tips);
+    renderRedo(buildRedoPlan(points, 5));
   }
 
   /* ---------- 渲染：专注与效率 ---------- */
@@ -268,10 +326,10 @@ var top = d.knowledge_point_errors[0];
     var s = d.summary;
 
     renderMetrics("focus-metrics", [
-      ["累计专注", fmtHours(s.total_duration_seconds)],
-      ["日均", fmtHours(s.avg_daily_seconds)],
-      ["中位数", fmtHours(s.median_daily_seconds)],
-      ["P90", fmtHours(s.p90_daily_seconds)]
+      ["累计专注", fmtHours(s.total_duration_seconds), "key"],
+      ["日均", fmtHours(s.avg_daily_seconds), ""],
+      ["中位数", fmtHours(s.median_daily_seconds), ""],
+      ["P90", fmtHours(s.p90_daily_seconds), ""]
     ]);
 
     renderChart("chart-dual", window.Charts.dualAxis(d.efficiency_trend));
@@ -387,8 +445,8 @@ var top = d.knowledge_point_errors[0];
       btn.addEventListener("click", function () { switchTab(btn.dataset.tab); });
     });
 
-    getData().then(function (data) {
-      DATA = data;
+    getData().then(function (raw) {
+      DATA = normalizeData(raw);
       renderMeta();
       // 按当前激活的 Tab 渲染，避免只认死错题面板
       var active = document.querySelector(".tab.active");

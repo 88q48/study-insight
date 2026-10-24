@@ -226,6 +226,8 @@
 
 请求体：`{ "device_id": "win_device_01", "answer": "B" }`
 
+**正常判题（题目有答案）：**
+
 ```json
 {
   "status": "success",
@@ -236,7 +238,23 @@
 
 选择题会自动判断题：把提交的 `answer` 与存下来的答案比对。
 填空题同样按字符串比对（去空格、忽略大小写）。
-题目没有答案时，`correct` 恒为 `false`。
+
+**题目本身没有答案时（`status` 为 `skipped`）：**
+
+```json
+{
+  "status": "skipped",
+  "correct": null,
+  "reason": "这道题没有录入答案，无法判对错，本次作答未计入统计",
+  "error": { "attempt_count": 0, "correct_count": 0, "accuracy": 0.0 }
+}
+```
+
+这种题**不计入做题次数**，`attempt_count` 保持不变。
+
+> 早期版本这里是 `correct = bool(answer) and (...)`，空答案恒为 `false`，
+> 导致没填答案的题做多少次正确率都是 0%，也永远不会变成已掌握。
+> 前端拿到 `skipped` 时应该提示用户「这道题还没录答案」，而不是显示答错。
 
 ### 6.6 删除（DELETE /api/v1/errors/{error_id}?device_id=...）
 
@@ -245,3 +263,111 @@
 ```
 
 只能删自己设备的错题，`device_id` 对不上返回 404。
+
+---
+
+## 七、OCR 解析接口（POST /api/v1/ocr/parse）
+
+前端 OCR 拿到整段文字后调这里，后端切成科目 / 题型 / 题干 / 答案。
+**只做切分和归类，不落库**；用户确认后由前端自己调 `POST /api/v1/errors`。
+
+### 7.1 请求
+
+```json
+{ "text": "OCR 识别出的原始长文本（可含换行）" }
+```
+
+`text` 为空返回 422。超过 20000 字符会截断。
+
+### 7.2 响应
+
+```json
+{
+  "subject": "数学",
+  "question_type": "选择题",
+  "question_content": "已知函数 f(x) 的定义域为 (0, +∞)……",
+  "answer": "A",
+  "question_type_code": "choice",
+  "knowledge_point": "导数与函数",
+  "options": {
+    "A": "(0, 2)",
+    "B": "(2, +∞)",
+    "C": "(0, +∞)",
+    "D": "(0, 2) ∪ (2, +∞)"
+  },
+  "confidence": { "subject": 9, "answer": 2 },
+  "warnings": []
+}
+```
+
+**前端约定的四个字段**：`subject`、`question_type`、`question_content`、`answer`。
+
+| 字段 | 说明 |
+|---|---|
+| `subject` | 科目。识别不出来时是空串，前端应让用户手动选 |
+| `question_type` | `选择题` / `填空题` / `解答题` |
+| `question_content` | 题干，已去掉选项和答案段 |
+| `answer` | 答案或解析，没有时为空串 |
+
+**附加字段**（顺手给的，不用也可以）：
+
+| 字段 | 说明 |
+|---|---|
+| `question_type_code` | `choice` / `fill`，可直接塞进 `POST /api/v1/errors` 的 `question_type` |
+| `knowledge_point` | 跟看板已有词表对齐（导数与函数、圆锥曲线、力学……），能直接落进同一个榜单 |
+| `options` | 选择题的 A/B/C/D；非选择题是 `{}` |
+| `confidence.subject` | 分科可信度 0-20。低于 4 建议提示用户检查 |
+| `warnings` | 需要用户手动确认的地方，前端可以直接展示成小提示 |
+
+### 7.3 题型与后端枚举的差异
+
+`question_type` 里会出现「解答题」，但 `POST /api/v1/errors` 的
+`question_type` 目前只接受 `choice` / `fill`。所以 `question_type_code`
+把解答题映射成 `fill`，内容本身不受影响。
+
+如果之后要单独统计解答题，需要把 `ErrorIn.question_type` 的枚举扩成
+`choice` / `fill` / `answer` 三档。
+
+### 7.4 解析规则说明
+
+用规则不用大模型，原因：本地演示没有网络也没有 API key，规则永远可用。
+
+处理顺序：
+
+1. **清洗**：OCR 会在每个汉字之间插空格（`已 知 函 数`），先压掉；
+   全角运算符 `＋－＝＜＞` 归一成半角；行内多余空白压成一个
+2. **接行**：行尾没标点、下一行又不是选项/小问标记时，把两行接回去
+3. **抽选项**：只认字母严格递增且四段内容都不空的 A/B/C/D，
+   从后往前找，避免题干里的「A、B 两点」被误认成选项
+4. **切答案**：遇到 `【答案】`、`答案：`、`解析：`、`解：` 等行首标记就切
+5. **分科**：关键词命中打分，长词权重更高；英文占比过半判英语
+6. **判题型**：有四个选项 → 选择题；有下划线或空括号 → 填空题；
+   有小问 `（1）` 或「求/证明」→ 解答题
+
+### 7.5 实测样例
+
+输入（Windows OCR 的真实输出形态，汉字间带空格）：
+
+```
+已 知 函 数 的 定 义 域 为 （ 0 ， + ） ， 尸 ） 是 其 导 函 数 ， 且 满 足
+可 ） 一 歹 > 0 ，
+且 2 ） = 2 ， 则 不 等 式
+A. （ 0 , 2 ）
+B. （ 2 , + ∞ ）
+C. （ 0 , + ∞ ）
+D. （ 0 , 2 ） ∪ （ 2 , + ∞ ）
+答 案 ： A
+```
+
+输出：`subject=数学`、`question_type=选择题`、`knowledge_point=导数与函数`、
+四个选项全部完整、`answer=A`、`warnings=[]`。
+
+### 7.6 curl 自查
+
+```bash
+curl -X POST http://127.0.0.1:8010/api/v1/ocr/parse \
+  -H "Content-Type: application/json" \
+  -d "{\"text\":\"已知函数 f(x) 的定义域为 (0,+∞)，且 f(2)=2，则 f(x)<x 的解集为（　　）\nA. (0,2)\nB. (2,+∞)\nC. (0,+∞)\nD. (0,2)∪(2,+∞)\n答案：A\"}"
+```
+
+Windows cmd 里中文容易乱码，建议用 PowerShell 或直接看 `/docs` 页面点 Try it out。

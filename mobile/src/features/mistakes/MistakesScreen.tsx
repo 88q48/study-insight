@@ -1,6 +1,14 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { deleteError, fetchErrors } from '../../shared/api/client';
 import type { ErrorItem } from '../../shared/api/types';
@@ -12,11 +20,13 @@ import {
 } from '../../shared/domain/error';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import { GlassChip, GlassPanel } from '../../shared/ui/Glass';
 import MathText from '../../shared/ui/MathText';
 
 export default function MistakesScreen() {
   const colors = useAppColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<ErrorItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,29 +35,31 @@ export default function MistakesScreen() {
     useCallback(() => {
       let isActive = true;
       setLoading(true);
-      fetchErrors()
-        .then((result) => {
+      fetchErrors(200)
+        .then(result => {
           if (isActive) {
             setData(result.items);
             setLoading(false);
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
           if (isActive) {
             Alert.alert('错误', '获取错题列表失败');
             setLoading(false);
           }
         });
-      return () => { isActive = false; };
-    }, [])
+      return () => {
+        isActive = false;
+      };
+    }, []),
   );
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ marginTop: 10, color: colors.textMuted }}>加载中...</Text>
+        <Text style={styles.loadingText}>加载中...</Text>
       </View>
     );
   }
@@ -83,24 +95,52 @@ export default function MistakesScreen() {
       <FlatList
         data={data}
         keyExtractor={(item, index) => item.error_id || index.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
+        showsVerticalScrollIndicator={false}
+        style={styles.list}
+        contentContainerStyle={[
+          styles.listContent,
+          {paddingBottom: insets.bottom + 118},
+        ]}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <View>
+              <Text style={styles.listTitle}>错题档案</Text>
+              <Text style={styles.listSubtitle}>按薄弱程度优先复习</Text>
+            </View>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{data.length} 道</Text>
+            </View>
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        renderItem={({item}) => (
+          <GlassPanel
+            radius={24}
+            style={styles.card}
+            contentStyle={styles.cardContent}
+          >
             <View style={styles.cardHeader}>
-              <Text style={styles.subject}>
-                {item.subject || '未分类'} - {item.knowledge_point || '未知知识点'}
-              </Text>
-              <View style={styles.cardMeta}>
-                <Text style={styles.typeBadge}>
-                  {isChoiceQuestion(item) ? '选择题' : '填空题'}
+              <View style={styles.cardTitleWrap}>
+                <Text style={styles.subject} numberOfLines={1}>
+                  {item.subject || '未分类'}
                 </Text>
-                <Text style={styles.status}>
-                  {item.mastered ? '已掌握' : '待复习'}
+                <Text style={styles.knowledge} numberOfLines={1}>
+                  {item.knowledge_point || '未知知识点'}
                 </Text>
               </View>
+              <View style={styles.cardMeta}>
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeBadgeText}>
+                    {isChoiceQuestion(item) ? '选择题' : '填空题'}
+                  </Text>
+                </View>
+              </View>
             </View>
+
             <MathText style={styles.question}>
-              题目：{questionOf(item) || '（未填写题目）'}
+              {questionOf(item) || '（未填写题目）'}
             </MathText>
+
             {isChoiceQuestion(item) && (
               <View style={styles.optionsBox}>
                 {CHOICE_KEYS.map(key => (
@@ -110,75 +150,179 @@ export default function MistakesScreen() {
                 ))}
               </View>
             )}
-            <MathText style={styles.answer}>
-              答案：{item.answer || '（未填写答案）'}
-            </MathText>
-            <View style={styles.cardFooter}>
-              <Text style={styles.stats}>
-                做题 {item.attempt_count ?? 0} 次 · 正确率 {item.accuracy ?? 0}%
-              </Text>
-              <TouchableOpacity onPress={() => handleDelete(item)}>
-                <Text style={styles.deleteText}>删除</Text>
-              </TouchableOpacity>
+
+            <View style={styles.answerRow}>
+              <Text style={styles.answerLabel}>答案</Text>
+              <MathText style={styles.answer}>
+                {item.answer || '（未填写答案）'}
+              </MathText>
             </View>
-          </View>
+
+            <View style={styles.cardFooter}>
+              <View style={styles.statsRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: item.mastered
+                        ? colors.success
+                        : colors.textMuted,
+                    },
+                  ]}
+                />
+                <Text style={styles.stats}>
+                  {item.mastered ? '已掌握' : '待复习'} · 做题{' '}
+                  {item.attempt_count ?? 0} 次 · 正确率 {item.accuracy ?? 0}%
+                </Text>
+              </View>
+              <GlassChip
+                label="删除"
+                onPress={() => handleDelete(item)}
+                style={styles.deleteChip}
+                textStyle={styles.deleteText}
+                accessibilityLabel="删除这道错题"
+              />
+            </View>
+          </GlassPanel>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>暂无错题，快去录入吧！</Text>}
+        ListEmptyComponent={
+          <GlassPanel
+            radius={26}
+            style={styles.emptyPanel}
+            contentStyle={styles.emptyContent}
+          >
+            <Text style={styles.emptyIcon}>◌</Text>
+            <Text style={styles.emptyTitle}>还没有错题</Text>
+            <Text style={styles.emptyText}>去「录入」记下第一道题吧。</Text>
+          </GlassPanel>
+        }
       />
     </View>
   );
 }
 
+
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surfaceAlt, padding: 12 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: {
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 2,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: {width: 0, height: 4},
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subject: { fontSize: 14, color: colors.primary, fontWeight: '700' },
-  typeBadge: {
-    fontSize: 11,
-    color: colors.primary,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    overflow: 'hidden',
-  },
-  status: { fontSize: 12, color: colors.textMuted },
-  question: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 8, lineHeight: 24 },
-  optionsBox: {
-    marginBottom: 8,
-    gap: 4,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    padding: 10,
-  },
-  optionText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
-  answer: { fontSize: 14, color: colors.textSecondary },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  stats: { fontSize: 12.5, color: colors.textMuted },
-  deleteText: { fontSize: 13, color: colors.danger, fontWeight: '600' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: colors.textMuted, fontSize: 16 },
-});
+    container: {flex: 1, overflow: 'hidden'},
+    list: {flex: 1, overflow: 'hidden'},
+    center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+    loadingText: {marginTop: 12, color: colors.textMuted, fontSize: 13},
+    listContent: {paddingHorizontal: 16, paddingTop: 2},
+    listHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 4,
+      paddingTop: 2,
+      paddingBottom: 14,
+    },
+    listTitle: {fontSize: 20, fontWeight: '800', color: colors.text},
+    listSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 3,
+      letterSpacing: 0.2,
+    },
+    countBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    countText: {fontSize: 12, fontWeight: '700', color: colors.textSecondary},
+    separator: {height: 12},
+    card: {},
+    cardContent: {padding: 17},
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 11,
+      gap: 10,
+    },
+    cardTitleWrap: {flex: 1},
+    subject: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 0.3,
+    },
+    knowledge: {fontSize: 11.5, color: colors.textMuted, marginTop: 3},
+    cardMeta: {flexDirection: 'row', alignItems: 'center'},
+    typeBadge: {
+      borderRadius: 12,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    typeBadgeText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      letterSpacing: 0.4,
+    },
+    question: {
+      fontSize: 16.5,
+      fontWeight: '600',
+      color: colors.text,
+      lineHeight: 26,
+    },
+    optionsBox: {
+      marginTop: 11,
+      gap: 5,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      padding: 12,
+    },
+    optionText: {fontSize: 14, color: colors.textSecondary, lineHeight: 22},
+    answerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 12,
+    },
+    answerLabel: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.8,
+    },
+    answer: {flex: 1, fontSize: 13.5, color: colors.textSecondary},
+    cardFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 13,
+      paddingTop: 11,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: 8,
+    },
+    statsRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    statusDot: {width: 6, height: 6, borderRadius: 3},
+    stats: {fontSize: 11.5, color: colors.textMuted},
+    deleteChip: {minWidth: 0},
+    deleteText: {fontSize: 12, color: colors.danger, fontWeight: '700'},
+    emptyPanel: {marginTop: 40},
+    emptyContent: {alignItems: 'center', paddingVertical: 38},
+    emptyIcon: {fontSize: 32, color: colors.textMuted},
+    emptyTitle: {
+      marginTop: 10,
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    emptyText: {marginTop: 5, fontSize: 13, color: colors.textMuted},
+  });
