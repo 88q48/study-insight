@@ -19,6 +19,8 @@ import {
 } from '../../shared/theme/Wallpaper';
 import type { WallpaperId } from '../../shared/theme/Wallpaper';
 import { GlassChip, GlassPanel } from '../../shared/ui/Glass';
+import { FEATURES } from '../../shared/settings/features';
+import { useFeatureFlags } from '../../shared/settings/useFeatureFlags';
 
 const OPACITY_OPTIONS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 
@@ -34,6 +36,7 @@ export default function SettingsScreen() {
     setCustomWallpaper,
     setOpacity,
   } = useWallpaper();
+  const { flags, setFlag } = useFeatureFlags();
   const [picking, setPicking] = useState(false);
 
   const chooseCustomImage = async () => {
@@ -204,6 +207,42 @@ export default function SettingsScreen() {
         </Text>
       </GlassPanel>
 
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>功能</Text>
+        <Text style={styles.sectionHint}>按需开关</Text>
+      </View>
+      <GlassPanel radius={26} contentStyle={styles.featureList}>
+        {FEATURES.map((item, index) => {
+          const on = flags[item.id];
+          return (
+            <View
+              key={item.id}
+              style={[
+                styles.featureRow,
+                index < FEATURES.length - 1 && styles.featureRowDivider,
+              ]}>
+              <View style={styles.featureText}>
+                <Text style={styles.featureLabel}>{item.label}</Text>
+                <Text style={styles.featureHint}>{item.hint}</Text>
+                {item.requiresPermission && on ? (
+                  <Text style={styles.featureWarn}>
+                    还需要在系统设置里允许「{item.permissionLabel}」
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                accessibilityRole="switch"
+                accessibilityState={{checked: on}}
+                accessibilityLabel={item.label}
+                onPress={() => setFlag(item.id, !on)}
+                style={({pressed}) => [pressed && styles.pressed]}>
+                <GlassToggle on={on} colors={colors} />
+              </Pressable>
+            </View>
+          );
+        })}
+      </GlassPanel>
+
       <Pressable
         accessibilityRole="button"
         onPress={() => {
@@ -217,6 +256,51 @@ export default function SettingsScreen() {
   );
 }
 
+
+/**
+ * 玻璃风格的开关。
+ *
+ * 没用 RN 自带的 Switch，因为原生那个在深色玻璃背景上像个塑料零件，
+ * 跟界面其他地方不搭。自己画一个胶囊 + 圆点，开的时候用亮色轨道。
+ */
+function GlassToggle({on, colors}: {on: boolean; colors: AppColors}) {
+  return (
+    <View
+      style={[
+        toggleStyles.track,
+        {
+          backgroundColor: on ? colors.primary : colors.surfaceMuted,
+          borderColor: on ? colors.primary : colors.glassBorder,
+        },
+      ]}>
+      <View
+        style={[
+          toggleStyles.knob,
+          {
+            backgroundColor: on ? colors.onPrimary : colors.textMuted,
+            transform: [{translateX: on ? 22 : 0}],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+const toggleStyles = StyleSheet.create({
+  track: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  knob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+});
 
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
@@ -364,6 +448,36 @@ const makeStyles = (colors: AppColors) =>
       fontSize: 11,
       lineHeight: 17,
       color: colors.textMuted,
+    },
+    featureList: {padding: 0},
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    featureRowDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    featureText: {flex: 1},
+    featureLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    featureHint: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+    },
+    featureWarn: {
+      marginTop: 6,
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textSecondary,
     },
     resetButton: {
       alignSelf: 'center',

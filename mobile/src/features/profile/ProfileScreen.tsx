@@ -23,6 +23,7 @@ import { WallpaperBackdrop } from '../../shared/theme/Wallpaper';
 import { GlassPanel, GlassSegmented } from '../../shared/ui/Glass';
 import type { GlassSegmentOption } from '../../shared/ui/Glass';
 import { syncUsageStats } from '../../shared/usage/sync';
+import { useFeatureFlags } from '../../shared/settings/useFeatureFlags';
 import {
   AppUsageBars,
   FocusTrendChart,
@@ -32,25 +33,12 @@ import {
   WeakPointBars,
 } from './ProfileCharts';
 
-/**
- * 「专注效率」要 Android 的「使用情况访问」权限，那得手动去系统设置里开，
- * 演示现场没法保证授权，所以先把这个 tab 关掉。
- *
- * 原生模块、sync、后端表都还留着，这只是界面开关。
- * 要恢复就改成 true，别的地方都不用动。
- */
-const SHOW_FOCUS_TAB = false;
-
 type ProfileTab = 'errors' | 'focus';
 
 const ALL_TABS: readonly GlassSegmentOption<ProfileTab>[] = [
   {value: 'errors', label: '错题诊断'},
   {value: 'focus', label: '专注效率'},
 ];
-
-const TAB_OPTIONS: readonly GlassSegmentOption<ProfileTab>[] = SHOW_FOCUS_TAB
-  ? ALL_TABS
-  : ALL_TABS.filter(item => item.value !== 'focus');
 
 function formatPeriodDate(value?: string): string {
   if (!value) {
@@ -68,6 +56,12 @@ export default function ProfileScreen() {
   const {width} = useWindowDimensions();
   const chartWidth = Math.max(240, width - 76);
 
+  const { flags } = useFeatureFlags();
+  const tabOptions = useMemo<readonly GlassSegmentOption<ProfileTab>[]>(
+    () =>
+      flags.focus ? ALL_TABS : ALL_TABS.filter(item => item.value !== 'focus'),
+    [flags.focus],
+  );
   const [tab, setTab] = useState<ProfileTab>('errors');
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,7 +98,7 @@ export default function ProfileScreen() {
         setRefreshing(true);
       }
       try {
-        if (SHOW_FOCUS_TAB) {
+        if (flags.focus) {
           const result = await syncUsageStats();
           if (result.status === 'permission_denied') {
             setUsageAccess('denied');
@@ -119,7 +113,7 @@ export default function ProfileScreen() {
       }
       await loadAnalysis(isRefresh);
     },
-    [loadAnalysis],
+    [loadAnalysis, flags.focus],
   );
 
   useFocusEffect(
@@ -182,7 +176,7 @@ export default function ProfileScreen() {
         <Text style={styles.kicker}>学习档案 · 最近 {ANALYSIS_DAYS} 天</Text>
         <Text style={styles.title}>我的</Text>
         <Text style={styles.subtitle}>
-            {SHOW_FOCUS_TAB
+            {flags.focus
               ? '错题和专注，放在同一张学习地图上。'
               : '把错题和薄弱点，放在同一张学习地图上。'}
           </Text>
@@ -284,7 +278,7 @@ export default function ProfileScreen() {
             </View>
           </GlassPanel>
 
-          {SHOW_FOCUS_TAB && usageAccess === 'denied' ? (
+          {flags.focus && usageAccess === 'denied' ? (
             <GlassPanel
               radius={22}
               style={styles.permissionCard}
@@ -308,9 +302,9 @@ export default function ProfileScreen() {
             </GlassPanel>
           ) : null}
 
-          {SHOW_FOCUS_TAB ? (
+          {flags.focus ? (
             <GlassSegmented
-              options={TAB_OPTIONS}
+              options={tabOptions}
               value={tab}
               onChange={setTab}
               style={styles.segmented}
