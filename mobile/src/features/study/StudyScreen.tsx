@@ -2,9 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -14,6 +14,11 @@ import { fetchSubjects } from '../../shared/api/client';
 import type { SubjectOption } from '../../shared/api/types';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
+import {
+  GlassButton,
+  GlassChip,
+  GlassPanel,
+} from '../../shared/ui/Glass';
 import type { RootStackParamList } from '../../app/navigation/types';
 
 export default function StudyScreen() {
@@ -63,8 +68,17 @@ export default function StudyScreen() {
 
   return (
     <View style={styles.setupContainer}>
-      <Text style={styles.setupTitle}>开始练习</Text>
-      <Text style={styles.setupHint}>选择题量和科目，优先安排错得多的题。</Text>
+      <View style={styles.headingRow}>
+        <View style={styles.headingCopy}>
+          <Text style={styles.setupTitle}>开始练习</Text>
+          <Text style={styles.setupHint}>
+            选择题量和科目，优先安排错得多的题。
+          </Text>
+        </View>
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepNumber}>01</Text>
+        </View>
+      </View>
 
       {setupLoading ? (
         <ActivityIndicator
@@ -74,27 +88,17 @@ export default function StudyScreen() {
         />
       ) : (
         <>
-          <View style={styles.setupCard}>
+          <GlassPanel radius={28} contentStyle={styles.setupCardContent}>
             <Text style={styles.sectionLabel}>科目</Text>
             <View style={styles.chipRow}>
               {['全部', ...subjects.map(item => item.subject)].map(subject => (
-                <TouchableOpacity
+                <GlassChip
                   key={subject}
-                  style={[
-                    styles.chip,
-                    selectedSubject === subject && styles.chipActive,
-                  ]}
+                  label={subject}
+                  active={selectedSubject === subject}
                   onPress={() => setSelectedSubject(subject)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selectedSubject === subject && styles.chipTextActive,
-                    ]}
-                  >
-                    {subject}
-                  </Text>
-                </TouchableOpacity>
+                  accessibilityLabel={`选择${subject}`}
+                />
               ))}
             </View>
 
@@ -102,33 +106,40 @@ export default function StudyScreen() {
               做题数
             </Text>
             <View style={styles.countRow}>
-              {[5, 10, 20, 50].map(count => (
-                <TouchableOpacity
-                  key={count}
-                  style={[
-                    styles.countCard,
-                    questionLimit === count && styles.countCardActive,
-                  ]}
-                  onPress={() => setQuestionLimit(count)}
-                >
-                  <Text
-                    style={[
-                      styles.countNumber,
-                      questionLimit === count && styles.countTextActive,
+              {[5, 10, 20, 50].map(count => {
+                const active = questionLimit === count;
+                return (
+                  <Pressable
+                    key={count}
+                    accessibilityRole="button"
+                    accessibilityLabel={`选择 ${count} 题`}
+                    accessibilityState={{selected: active}}
+                    onPress={() => setQuestionLimit(count)}
+                    style={({pressed}) => [
+                      styles.countCard,
+                      active && styles.countCardActive,
+                      pressed && styles.countCardPressed,
                     ]}
                   >
-                    {count}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.countUnit,
-                      questionLimit === count && styles.countTextActive,
-                    ]}
-                  >
-                    题
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.countNumber,
+                        active && styles.countTextActive,
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.countUnit,
+                        active && styles.countTextActive,
+                      ]}
+                    >
+                      题
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={styles.infoRow}>
@@ -139,15 +150,16 @@ export default function StudyScreen() {
                 已开启「错题优先」，薄弱题目会先出现
               </Text>
             </View>
-          </View>
+          </GlassPanel>
 
           <View style={styles.setupSpacer} />
 
-          <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
-            <Text style={styles.btnText}>
-              {`开始练习 · ${questionLimit} 题  →`}
-            </Text>
-          </TouchableOpacity>
+          <GlassButton
+            label={`开始练习 · ${questionLimit} 题  →`}
+            tone="dark"
+            onPress={handleStart}
+            style={styles.startBtn}
+          />
         </>
       )}
     </View>
@@ -158,67 +170,85 @@ const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     setupContainer: {
       flex: 1,
-      backgroundColor: colors.background,
       paddingHorizontal: 20,
       paddingTop: 2,
     },
+    headingRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginTop: 4,
+      marginBottom: 18,
+      gap: 12,
+    },
+    headingCopy: {flex: 1},
     setupTitle: {
       fontSize: 30,
       fontWeight: '800',
       color: colors.text,
-      marginTop: 4,
+      letterSpacing: 0.4,
     },
     setupHint: {
-      fontSize: 15,
+      fontSize: 14,
       color: colors.textSecondary,
-      marginTop: 8,
-      marginBottom: 18,
-      lineHeight: 23,
+      marginTop: 7,
+      lineHeight: 22,
+    },
+    stepBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.glass,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    stepNumber: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: colors.textMuted,
+      letterSpacing: 1,
     },
     setupLoading: {marginTop: 30},
+    setupCardContent: {padding: 18},
     sectionLabel: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '700',
-      color: colors.textSecondary,
+      color: colors.textMuted,
       marginBottom: 10,
+      letterSpacing: 0.8,
     },
     sectionLabelSpaced: {marginTop: 22},
     chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 10},
-    setupCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 24,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: colors.shadow,
-      shadowOpacity: 0.05,
-      shadowRadius: 18,
-      shadowOffset: {width: 0, height: 8},
-      elevation: 3,
-    },
-    countRow: {flexDirection: 'row', gap: 10},
+    countRow: {flexDirection: 'row', gap: 9},
     countCard: {
       flex: 1,
-      paddingVertical: 12,
-      borderRadius: 16,
+      paddingVertical: 13,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
+      borderColor: colors.glassBorder,
+      backgroundColor: colors.glass,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     countCardActive: {
       backgroundColor: colors.primaryStrong,
-      borderColor: colors.primary,
+      borderColor: 'rgba(255,255,255,0.32)',
+      shadowOpacity: 0.18,
     },
+    countCardPressed: {opacity: 0.82, transform: [{scale: 0.98}]},
     countNumber: {fontSize: 22, fontWeight: '700', color: colors.text},
-    countUnit: {fontSize: 12, color: colors.textSecondary, marginTop: 1},
+    countUnit: {fontSize: 11, color: colors.textMuted, marginTop: 1},
     countTextActive: {color: colors.onPrimary},
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 9,
-      backgroundColor: colors.primarySoft,
-      borderRadius: 12,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginTop: 18,
@@ -227,12 +257,12 @@ const makeStyles = (colors: AppColors) =>
       width: 20,
       height: 20,
       borderRadius: 10,
-      borderWidth: 2,
-      borderColor: colors.primary,
+      borderWidth: 1.5,
+      borderColor: colors.textSecondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    infoCheck: {fontSize: 11, fontWeight: '800', color: colors.primary},
+    infoCheck: {fontSize: 11, fontWeight: '800', color: colors.textSecondary},
     infoText: {
       flex: 1,
       fontSize: 12.5,
@@ -240,32 +270,5 @@ const makeStyles = (colors: AppColors) =>
       lineHeight: 18,
     },
     setupSpacer: {flex: 1, minHeight: 18},
-    chip: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
-    },
-    chipActive: {
-      backgroundColor: colors.primaryStrong,
-      borderColor: colors.primary,
-    },
-    chipText: {fontSize: 14, color: colors.textSecondary, fontWeight: '600'},
-    chipTextActive: {color: colors.onPrimary},
-    startBtn: {
-      marginTop: 24,
-      marginBottom: 12,
-      backgroundColor: colors.primaryStrong,
-      padding: 16,
-      borderRadius: 12,
-      alignItems: 'center',
-      elevation: 3,
-      shadowColor: colors.primary,
-      shadowOpacity: 0.25,
-      shadowRadius: 10,
-      shadowOffset: {width: 0, height: 4},
-    },
-    btnText: {color: colors.onPrimary, fontSize: 16, fontWeight: '700'},
+    startBtn: {marginTop: 24, marginBottom: 12, borderRadius: 18},
   });

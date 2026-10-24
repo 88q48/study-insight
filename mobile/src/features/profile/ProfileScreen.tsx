@@ -19,8 +19,8 @@ export default function ProfileScreen() {
         startInLoadingState={true}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={{ marginTop: 10, color: '#666' }}>看板加载中...</Text>
+            <ActivityIndicator size="large" color="#34383D" />
+            <Text style={{ marginTop: 10, color: '#8B9199' }}>看板加载中...</Text>
           </View>
         )}
         javaScriptEnabled={true}
