@@ -404,3 +404,46 @@ def test_attempt_stats_practice_priority_and_delete():
     ).json()
     assert all(item["error_id"] != "err_stats_a" for item in remaining["items"])
 
+
+
+def test_attempt_without_answer_is_skipped():
+    """题目没录答案时，作答应被跳过而不是记成做错。
+
+    以前这里是 correct = bool(answer) and (...)，空答案恒为 False，
+    导致这类题做多少次正确率都是 0%，也永远不会变成已掌握。
+    """
+    created = client.post(
+        "/api/v1/errors",
+        json={
+            "error_id": "err_no_answer",
+            "device_id": DEVICE,
+            "subject": "数学",
+            "knowledge_point": "未分类",
+            "content": "这道题故意不填答案",
+            "question_type": "fill",
+        },
+    )
+    assert created.status_code == 201
+
+    # 提交任何答案都不该被计入统计
+    first = client.post(
+        "/api/v1/errors/err_no_answer/attempts",
+        json={"device_id": DEVICE, "answer": "随便填一个"},
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert body["status"] == "skipped"
+    assert body["correct"] is None
+    assert "没有录入答案" in body["reason"]
+    assert body["error"]["attempt_count"] == 0
+    assert body["error"]["accuracy"] == 0.0
+
+    # 再提交一次，仍然不累加
+    second = client.post(
+        "/api/v1/errors/err_no_answer/attempts",
+        json={"device_id": DEVICE, "answer": "再填一次"},
+    )
+    assert second.json()["status"] == "skipped"
+    assert second.json()["error"]["attempt_count"] == 0
+
+    client.delete(f"/api/v1/errors/err_no_answer?device_id={DEVICE}")

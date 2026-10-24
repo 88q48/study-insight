@@ -15,6 +15,7 @@ from datetime import datetime, time, timedelta, timezone
 
 import analytics
 import db
+import seed_bank
 
 DEMO_DEVICE = "win_device_01"
 
@@ -70,13 +71,36 @@ def build_demo_errors(now: datetime) -> list[dict]:
                     if mastered_at > now:
                         mastered_at = max(created_at, now - timedelta(minutes=15))
 
+                # 题目内容和答案从题库取，练习模式要判对错，不能空着
+                q = seed_bank.pick_question(point, index)
+
+                # 做题记录：已掌握的题一定做过且做对；
+                # 未掌握的题做过 0~3 次，其中做对的次数少于总次数。
+                # 这样正确率落在 0%~100% 之间，不是清一色 0%。
+                if mastered:
+                    # 已掌握的也留一点做错记录：真实情况往往是错几次才掌握，
+                    # 全部 100% 反而不像真的。
+                    attempts = 2 + index % 3
+                    corrects = attempts - (index % 2)
+                else:
+                    attempts = index % 4
+                    corrects = min(attempts, index % 2)
+
                 records.append(
                     {
                         "error_id": f"err_demo_{index:04d}",
                         "device_id": DEMO_DEVICE,
                         "subject": subject,
                         "knowledge_point": point,
-                        "content": f"演示错题：{subject}·{point} 第 {index} 题",
+                        "question_type": q["question_type"],
+                        "content": q["content"],
+                        "answer": q["answer"],
+                        "option_a": q["option_a"],
+                        "option_b": q["option_b"],
+                        "option_c": q["option_c"],
+                        "option_d": q["option_d"],
+                        "attempt_count": attempts,
+                        "correct_count": corrects,
                         "created_at": _iso(created_at),
                         "mastered": mastered,
                         "review_count": (2 + index % 3) if mastered else (index % 3),

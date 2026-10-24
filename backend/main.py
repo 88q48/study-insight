@@ -250,9 +250,18 @@ def record_error_attempt(error_id: str, payload: AttemptIn):
     if existing is None or existing["device_id"] != payload.device_id:
         raise HTTPException(status_code=404, detail="错题不存在")
 
-    correct = bool(existing["answer"]) and (
-        _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
-    )
+    # 题目本身没录答案时判不了对错。以前这里会当成「做错」，
+    # 导致这类题做多少次正确率都是 0%，也永远不会变成已掌握。
+    # 现在直接跳过统计，把情况如实告诉前端。
+    if not (existing["answer"] or "").strip():
+        return {
+            "status": "skipped",
+            "correct": None,
+            "reason": "这道题没有录入答案，无法判对错，本次作答未计入统计",
+            "error": _serialize_error(existing),
+        }
+
+    correct = _normalize_answer(payload.answer) == _normalize_answer(existing["answer"])
     updated = db.record_attempt(error_id, correct, payload.device_id)
     if updated is None:
         raise HTTPException(status_code=404, detail="错题不存在")

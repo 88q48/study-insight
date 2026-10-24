@@ -226,6 +226,8 @@
 
 请求体：`{ "device_id": "win_device_01", "answer": "B" }`
 
+**正常判题（题目有答案）：**
+
 ```json
 {
   "status": "success",
@@ -236,7 +238,23 @@
 
 选择题会自动判断题：把提交的 `answer` 与存下来的答案比对。
 填空题同样按字符串比对（去空格、忽略大小写）。
-题目没有答案时，`correct` 恒为 `false`。
+
+**题目本身没有答案时（`status` 为 `skipped`）：**
+
+```json
+{
+  "status": "skipped",
+  "correct": null,
+  "reason": "这道题没有录入答案，无法判对错，本次作答未计入统计",
+  "error": { "attempt_count": 0, "correct_count": 0, "accuracy": 0.0 }
+}
+```
+
+这种题**不计入做题次数**，`attempt_count` 保持不变。
+
+> 早期版本这里是 `correct = bool(answer) and (...)`，空答案恒为 `false`，
+> 导致没填答案的题做多少次正确率都是 0%，也永远不会变成已掌握。
+> 前端拿到 `skipped` 时应该提示用户「这道题还没录答案」，而不是显示答错。
 
 ### 6.6 删除（DELETE /api/v1/errors/{error_id}?device_id=...）
 
