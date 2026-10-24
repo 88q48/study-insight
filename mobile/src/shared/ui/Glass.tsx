@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -247,6 +248,10 @@ export type GlassSegmentOption<T extends string> = {
   label: string;
 };
 
+/** 分段滑块：强减速曲线，比原来的弹簧更慢、更稳。 */
+const SEGMENT_EASING = Easing.bezier(0.16, 1, 0.3, 1);
+const SEGMENT_DURATION = 380;
+
 type GlassSegmentedProps<T extends string> = {
   options: readonly GlassSegmentOption<T>[];
   value: T;
@@ -273,12 +278,11 @@ export function GlassSegmented<T extends string>({
       : 0;
 
   useEffect(() => {
-    Animated.spring(slide, {
+    Animated.timing(slide, {
       toValue: activeIndex,
+      duration: SEGMENT_DURATION,
+      easing: SEGMENT_EASING,
       useNativeDriver: true,
-      stiffness: 230,
-      damping: 26,
-      mass: 0.8,
     }).start();
   }, [activeIndex, slide]);
 

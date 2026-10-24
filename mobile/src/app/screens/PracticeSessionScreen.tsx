@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -62,6 +63,19 @@ function dedupeQuestions(items: ErrorItem[]): ErrorItem[] {
 
 type ActionVariant = 'ready' | 'correct' | 'neutral' | 'disabled';
 
+/**
+ * 非线性缓动：
+ * - 按压用先快后慢的曲线，手指按下时响应明确，回弹不突兀；
+ * - 换题左滑先加速，再让下一题用强减速曲线落位。
+ */
+const PRESS_EASING = Easing.bezier(0.22, 0.61, 0.36, 1);
+const SLIDE_OUT_EASING = Easing.bezier(0.55, 0, 0.85, 0.4);
+const SLIDE_IN_EASING = Easing.bezier(0.16, 1, 0.3, 1);
+
+const PRESS_IN_DURATION = 120;
+const SLIDE_OUT_DURATION = 320;
+const SLIDE_IN_DURATION = 460;
+
 function AnimatedContinueButton({
   label,
   onPress,
@@ -84,39 +98,42 @@ function AnimatedContinueButton({
       Animated.sequence([
         Animated.timing(translateY, {
           toValue: -4,
-          duration: 70,
+          duration: PRESS_IN_DURATION,
+          easing: PRESS_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(translateY, {
           toValue: 0,
-          speed: 22,
-          bounciness: 10,
+          speed: 12,
+          bounciness: 5,
           useNativeDriver: true,
         }),
       ]),
       Animated.sequence([
         Animated.timing(scaleX, {
           toValue: 1.06,
-          duration: 70,
+          duration: PRESS_IN_DURATION,
+          easing: PRESS_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(scaleX, {
           toValue: 1,
-          speed: 22,
-          bounciness: 10,
+          speed: 12,
+          bounciness: 5,
           useNativeDriver: true,
         }),
       ]),
       Animated.sequence([
         Animated.timing(scaleY, {
           toValue: 0.9,
-          duration: 70,
+          duration: PRESS_IN_DURATION,
+          easing: PRESS_EASING,
           useNativeDriver: true,
         }),
         Animated.spring(scaleY, {
           toValue: 1,
-          speed: 22,
-          bounciness: 10,
+          speed: 12,
+          bounciness: 5,
           useNativeDriver: true,
         }),
       ]),
@@ -299,7 +316,8 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
       transitionRef.current = true;
       Animated.timing(slideX, {
         toValue: -screenWidth,
-        duration: 180,
+        duration: SLIDE_OUT_DURATION,
+        easing: SLIDE_OUT_EASING,
         useNativeDriver: true,
       }).start(({finished}) => {
         if (!finished) {
@@ -312,7 +330,8 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
         slideX.setValue(screenWidth);
         Animated.timing(slideX, {
           toValue: 0,
-          duration: 240,
+          duration: SLIDE_IN_DURATION,
+          easing: SLIDE_IN_EASING,
           useNativeDriver: true,
         }).start(() => {
           transitionRef.current = false;
