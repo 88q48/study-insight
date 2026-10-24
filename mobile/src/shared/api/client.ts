@@ -1,5 +1,11 @@
 import { ANALYSIS_DAYS, API_BASE_URL, DEVICE_ID } from '../config';
-import type { Analysis, ErrorItem, NewErrorPayload, SubjectOption } from './types';
+import type {
+  Analysis,
+  ErrorItem,
+  NewErrorPayload,
+  SubjectOption,
+  UsageEventUpload,
+} from './types';
 
 interface RequestOptions {
   method?: string;
@@ -113,5 +119,16 @@ export function deleteError(errorId: string) {
       DEVICE_ID,
     )}`,
     {method: 'DELETE'},
+  );
+}
+
+/** 批量上传 Android UsageStats 采集到的应用使用记录。 */
+export function uploadUsageEvents(events: UsageEventUpload[]) {
+  return request<{status: string; inserted: number; duplicates: number}>(
+    '/api/v1/events/batch',
+    {
+      method: 'POST',
+      body: JSON.stringify({events}),
+    },
   );
 }

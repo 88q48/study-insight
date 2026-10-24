@@ -125,3 +125,16 @@ export interface SubjectOption {
   subject: string;
   count: number;
 }
+
+/** 上传到 /api/v1/events/batch 的应用使用记录。 */
+export interface UsageEventUpload {
+  event_id: string;
+  device_id: string;
+  platform: string;
+  app_key: string;
+  app_name: string;
+  category: string;
+  start_at: string;
+  end_at: string;
+  duration_seconds: number;
+}

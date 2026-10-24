@@ -172,14 +172,21 @@ python main.py          # 默认 8010，与看板配置一致
 
 ### 演示数据
 
-空库首次启动会自动写入 120 道错题（数学 45 / 物理 35 / 英语 40，掌握 85，掌握率 70.8%）和最近 7 天的使用记录，看板端的三张空图会立即有数据。
+演示数据默认 **不会** 自动写入。需要时显式开启：
 
 ```bash
 python seed_demo.py            # 幂等写入
 python seed_demo.py --reset    # 删除演示数据后重写
+$env:SI_SEED_DEMO=1; python main.py   # 仅空库首次启动时自动写入
 ```
 
-接真实数据时用 `$env:SI_SEED_DEMO=0` 关闭自动写入。演示数据的 id 分别是 `err_demo_*` 和 `evt_demo_*`，不影响真实记录。
+真实设备接入后保持 `SI_SEED_DEMO` 未设置即可。演示数据的 id 分别是 `err_demo_*` 和 `evt_demo_*`，不影响真实记录。
+
+清理已有使用记录（只删演示事件、保留真实事件）：
+
+```sql
+DELETE FROM usage_event WHERE event_id LIKE 'evt_demo_%';
+```
 
 ### 测试
 

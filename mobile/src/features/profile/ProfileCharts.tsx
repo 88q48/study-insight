@@ -211,7 +211,7 @@ type FocusTrendProps = {
   width: number;
 };
 
-/** 每日专注时长趋势，单位为小时。 */
+/** 每日专注时长趋势；数据很小时自动改用分钟，避免全是 0.0h。 */
 export function FocusTrendChart({items, width}: FocusTrendProps) {
   const colors = useAppColors();
 
@@ -219,12 +219,19 @@ export function FocusTrendChart({items, width}: FocusTrendProps) {
     return <ChartEmpty label="还没有专注记录" />;
   }
 
+  const maxSeconds = Math.max(
+    ...items.map(item => item.total_duration_seconds),
+    0,
+  );
+  const useMinutes = maxSeconds > 0 && maxSeconds < 3600;
   const data = {
     labels: items.map(item => shortDate(item.date)),
     datasets: [
       {
-        data: items.map(
-          item => Math.round((item.total_duration_seconds / 3600) * 10) / 10,
+        data: items.map(item =>
+          useMinutes
+            ? Math.round(item.total_duration_seconds / 60)
+            : Math.round((item.total_duration_seconds / 3600) * 10) / 10,
         ),
         color: (opacity = 1) => `rgba(231,233,236,${opacity})`,
         strokeWidth: 2,
@@ -255,8 +262,12 @@ export function FocusTrendChart({items, width}: FocusTrendProps) {
       fromZero
       segments={3}
       yAxisLabel=""
-      yAxisSuffix="h"
-      formatYLabel={value => String(Number(value).toFixed(1))}
+      yAxisSuffix={useMinutes ? 'm' : 'h'}
+      formatYLabel={value =>
+        useMinutes
+          ? String(Math.round(Number(value)))
+          : String(Number(value).toFixed(1))
+      }
       style={styles.lineChart}
     />
   );

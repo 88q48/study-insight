@@ -123,10 +123,10 @@ def _normalize_answer(value: str | None) -> str:
     return "".join((value or "").split()).lower()
 
 
-# 建表；空库首次启动时写入演示数据，方便 C 直接看到图表。
-# 接真实数据后可用 $env:SI_SEED_DEMO=0 关闭。
+# 建表。演示数据默认关闭，只有显式设置 SI_SEED_DEMO=1 时才会写入。
+# 接真实数据后保持默认值即可，不会在空库时自动灌入假记录。
 db.init_db()
-if os.getenv("SI_SEED_DEMO", "1") != "0" and db.is_empty():
+if os.getenv("SI_SEED_DEMO", "0") == "1" and db.is_empty():
     try:
         from seed_demo import seed_demo_data
 

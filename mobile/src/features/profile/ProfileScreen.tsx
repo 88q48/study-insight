@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,10 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchAnalysis } from '../../shared/api/client';
 import type { Analysis } from '../../shared/api/types';
 import { ANALYSIS_DAYS } from '../../shared/config';
+import { openUsageAccessSettings } from '../../shared/native/usageStats';
 import { useAppColors } from '../../shared/theme/colors';
 import type { AppColors } from '../../shared/theme/colors';
 import { GlassPanel, GlassSegmented } from '../../shared/ui/Glass';
 import type { GlassSegmentOption } from '../../shared/ui/Glass';
+import { syncUsageStats } from '../../shared/usage/sync';
 import {
   AppUsageBars,
   FocusTrendChart,
@@ -42,6 +45,8 @@ function formatPeriodDate(value?: string): string {
   return value.slice(0, 10).replace(/-/g, '/');
 }
 
+type UsageAccessState = 'unknown' | 'granted' | 'denied' | 'unsupported';
+
 export default function ProfileScreen() {
   const colors = useAppColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -54,6 +59,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usageAccess, setUsageAccess] = useState<UsageAccessState>('unknown');
+  const syncingRef = useRef(false);
 
   const loadAnalysis = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -73,11 +80,46 @@ export default function ProfileScreen() {
     }
   }, []);
 
+  const refreshData = useCallback(
+    async (isRefresh = false) => {
+      if (syncingRef.current) {
+        return;
+      }
+      syncingRef.current = true;
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+      try {
+        const result = await syncUsageStats();
+        if (result.status === 'permission_denied') {
+          setUsageAccess('denied');
+        } else if (result.status === 'unsupported') {
+          setUsageAccess('unsupported');
+        } else {
+          setUsageAccess('granted');
+        }
+      } finally {
+        syncingRef.current = false;
+      }
+      await loadAnalysis(isRefresh);
+    },
+    [loadAnalysis],
+  );
+
   useFocusEffect(
     useCallback(() => {
-      void loadAnalysis();
-    }, [loadAnalysis]),
+      void refreshData();
+    }, [refreshData]),
   );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        void refreshData();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshData]);
 
   const stats = analysis?.error_stats;
   const total = stats?.total_errors ?? 0;
@@ -88,6 +130,13 @@ export default function ProfileScreen() {
     ? Math.max(0, Math.min(100, parsedRate))
     : 0;
   const progressWidth = `${rate}%` as `${number}%`;
+  const focusTrend = analysis?.trend || [];
+  const focusMaxSeconds = Math.max(
+    ...focusTrend.map(item => item.total_duration_seconds),
+    0,
+  );
+  const focusUnit =
+    focusMaxSeconds > 0 && focusMaxSeconds < 3600 ? '分钟' : '小时';
 
   return (
     <ScrollView
@@ -104,7 +153,7 @@ export default function ProfileScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={() => {
-            void loadAnalysis(true);
+            void refreshData(true);
           }}
           tintColor={colors.text}
           colors={[colors.text]}
@@ -211,6 +260,30 @@ export default function ProfileScreen() {
             </View>
           </GlassPanel>
 
+          {usageAccess === 'denied' ? (
+            <GlassPanel
+              radius={22}
+              style={styles.permissionCard}
+              contentStyle={styles.permissionContent}>
+              <View>
+                <Text style={styles.permissionTitle}>
+                  专注效率需要真实使用记录
+                </Text>
+                <Text style={styles.permissionHint}>
+                  开启「使用情况访问」后，只上传应用名和使用时长，不读取内容。
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => {
+                  void openUsageAccessSettings();
+                }}
+                style={styles.permissionButton}>
+                <Text style={styles.permissionButtonText}>去开启</Text>
+              </TouchableOpacity>
+            </GlassPanel>
+          ) : null}
+
           <GlassSegmented
             options={TAB_OPTIONS}
             value={tab}
@@ -255,13 +328,10 @@ export default function ProfileScreen() {
             <>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>每日专注时长</Text>
-                <Text style={styles.sectionHint}>单位：小时</Text>
+                <Text style={styles.sectionHint}>单位：{focusUnit}</Text>
               </View>
               <GlassPanel radius={26} contentStyle={styles.cardContent}>
-                <FocusTrendChart
-                  items={analysis.trend || []}
-                  width={chartWidth}
-                />
+                <FocusTrendChart items={focusTrend} width={chartWidth} />
               </GlassPanel>
 
               <GlassPanel radius={26} contentStyle={styles.focusSummary}>
@@ -379,6 +449,31 @@ function makeStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
     inlineRetry: {fontSize: 12, fontWeight: '700'},
+    permissionCard: {marginTop: 14},
+    permissionContent: {padding: 16, gap: 12},
+    permissionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    permissionHint: {
+      marginTop: 5,
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.textMuted,
+    },
+    permissionButton: {
+      alignSelf: 'flex-start',
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      backgroundColor: colors.text,
+    },
+    permissionButtonText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.background,
+    },
     overviewContent: {padding: 20},
     overviewTop: {
       flexDirection: 'row',
