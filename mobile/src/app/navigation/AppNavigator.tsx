@@ -210,7 +210,11 @@ function MainTabs() {
         component={PracticeTab}
         options={{headerShown: false}}
       />
-      <Tab.Screen name="我的" component={ProfileTab} />
+      <Tab.Screen
+        name="我的"
+        component={ProfileTab}
+        options={{headerShown: false}}
+      />
     </Tab.Navigator>
   );
 }
