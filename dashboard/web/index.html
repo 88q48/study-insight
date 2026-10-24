@@ -14,7 +14,23 @@
       <h1>📚 错题管理与学情诊断</h1>
       <p class="sub" id="meta-line">正在加载…</p>
     </div>
-    <span class="badge" id="source-badge">—</span>
+    <div class="hero-right">
+      <div class="source-controls">
+        <label class="control">设备
+          <select id="device-select">
+            <option value="win_device_01">win_device_01（电脑演示）</option>
+            <option value="android_emulator_01">android_emulator_01（手机）</option>
+          </select>
+        </label>
+        <label class="control">数据源
+          <select id="source-select">
+            <option value="api">真实后端</option>
+            <option value="mock">演示数据</option>
+          </select>
+        </label>
+      </div>
+      <span class="badge" id="source-badge">—</span>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist">

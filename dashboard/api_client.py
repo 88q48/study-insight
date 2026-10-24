@@ -37,10 +37,10 @@ def _mock(device_id, reason="", source="mock"):
     return get_mock_response_from_events(device_id=device_id)
 
 
-def _try_urls(device_id):
+def _try_urls(device_id, days=None):
     """按候选路径依次尝试，返回 (json, url) 或 (None, 错误说明)。"""
     errors = []
-    for url in config.analysis_urls(device_id):
+    for url in config.analysis_urls(device_id, days):
         try:
             resp = requests.get(url, timeout=config.REQUEST_TIMEOUT)
         except requests.exceptions.ConnectionError:
@@ -74,15 +74,19 @@ def _try_urls(device_id):
     return None, "；".join(errors[-3:]) if errors else "所有候选路径都失败"
 
 
-def fetch_analysis(device_id=None):
-    """获取分析数据，返回看板标准结构。"""
-    dev = device_id or config.DEVICE_ID
+def fetch_analysis(device_id=None, use_mock=None, days=None):
+    """获取分析数据，返回看板标准结构。
 
-    if config.USE_MOCK:
+    use_mock 显式传入时优先于 config.USE_MOCK，供 Streamlit 侧边栏临时切换。
+    """
+    dev = device_id or config.DEVICE_ID
+    mock_enabled = config.USE_MOCK if use_mock is None else bool(use_mock)
+
+    if mock_enabled:
         return _mock(dev)
 
     try:
-        raw, url = _try_urls(dev)
+        raw, url = _try_urls(dev, days)
     except Exception as e:
         if config.FALLBACK_TO_MOCK:
             return _mock(dev, reason=str(e), source="fallback")

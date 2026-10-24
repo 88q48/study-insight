@@ -11,6 +11,7 @@
 import streamlit as st
 
 import api_client
+import config
 from api_client import fetch_analysis
 from charts import (
     radar_subject, bar_subject_mastery, bar_knowledge_points,
@@ -26,10 +27,49 @@ def fmt_hours(seconds):
     return f"{seconds / 3600:.1f} 小时"
 
 
+# ---------- 数据源切换 ----------
+DEVICE_OPTIONS = ["win_device_01", "android_emulator_01"]
+if config.DEVICE_ID not in DEVICE_OPTIONS:
+    DEVICE_OPTIONS.append(config.DEVICE_ID)
+
+with st.sidebar:
+    st.header("🔀 数据源")
+    source_label = st.radio(
+        "数据来源",
+        ["真实后端", "演示数据"],
+        index=0 if not config.USE_MOCK else 1,
+    )
+    device_id = st.selectbox(
+        "设备",
+        DEVICE_OPTIONS,
+        index=DEVICE_OPTIONS.index(config.DEVICE_ID),
+    )
+    custom_device = st.text_input(
+        "自定义设备 ID（可选）",
+        value="",
+        placeholder="例如 android_emulator_01",
+    )
+    days = st.number_input(
+        "统计天数",
+        min_value=1,
+        max_value=90,
+        value=config.DAYS,
+        step=1,
+    )
+    st.caption("切换后会自动重新加载数据。")
+
+selected_device = custom_device.strip() or device_id
+selected_use_mock = source_label == "演示数据"
+
+
 # ---------- 加载数据 ----------
 with st.spinner("正在加载数据..."):
     try:
-        data = fetch_analysis()
+        data = fetch_analysis(
+            device_id=selected_device,
+            use_mock=selected_use_mock,
+            days=int(days),
+        )
     except Exception as e:
         st.error(f"数据加载失败：{e}")
         st.stop()
@@ -222,4 +262,13 @@ with tab_focus:
         st.write(f"- {t}")
 
 st.divider()
-st.caption("数据来源：后端 /api/v1/devices/{device_id}/analysis（当前为 mock）")
+_source_names = {
+    "api": "后端 API",
+    "mock": "演示数据",
+    "fallback": "后端未连通，已回退演示数据",
+}
+_source_label = _source_names.get(api_client.LAST_STATUS["source"], "未知来源")
+st.caption(
+    f"数据来源：后端 /api/v1/devices/{{device_id}}/analysis"
+    f"（{_source_label}；设备 {data['device_id']}）"
+)

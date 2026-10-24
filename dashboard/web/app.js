@@ -12,6 +12,18 @@
   var rendered = { error: false, focus: false };
   var DATA = null;
 
+  // URL 参数优先，便于直接分享某个设备/数据源：
+  //   ?device_id=android_emulator_01&source=api
+  var query = new URLSearchParams(window.location.search);
+  var querySource = query.get("source");
+  var queryDevice = query.get("device_id");
+  if (querySource === "mock" || querySource === "api") {
+    cfg.USE_MOCK = querySource === "mock";
+  }
+  if (queryDevice) {
+    cfg.DEVICE_ID = queryDevice;
+  }
+
   function fmtHours(sec) {
     return (sec / 3600).toFixed(1) + " 小时";
   }
@@ -325,9 +337,43 @@
     if (t) { t.innerHTML = "<li>数据加载失败：" + msg + "</li>"; }
   }
 
+  /* ---------- 数据源切换 ---------- */
+  function ensureOption(select, value) {
+    if (!select || !value) { return; }
+    for (var i = 0; i < select.options.length; i += 1) {
+      if (select.options[i].value === value) { return; }
+    }
+    var option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  }
+
+  function setupSourceControls() {
+    var deviceSelect = document.getElementById("device-select");
+    var sourceSelect = document.getElementById("source-select");
+    if (!deviceSelect || !sourceSelect) { return; }
+
+    ensureOption(deviceSelect, cfg.DEVICE_ID);
+    deviceSelect.value = cfg.DEVICE_ID;
+    sourceSelect.value = cfg.USE_MOCK ? "mock" : "api";
+
+    function reloadWithSelection() {
+      var params = new URLSearchParams(window.location.search);
+      params.set("device_id", deviceSelect.value);
+      params.set("source", sourceSelect.value);
+      window.location.search = params.toString();
+    }
+
+    deviceSelect.addEventListener("change", reloadWithSelection);
+    sourceSelect.addEventListener("change", reloadWithSelection);
+  }
+
   /* ---------- 启动 ---------- */
   function boot() {
     if (!document.getElementById("error-tips")) { return; }
+
+    setupSourceControls();
 
     document.querySelectorAll(".tab").forEach(function (btn) {
       btn.addEventListener("click", function () { switchTab(btn.dataset.tab); });
