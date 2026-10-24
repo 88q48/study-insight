@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "host": "node scripts/set-host.js"
+    "host": "node scripts/set-host.js",
+    "usb": "node scripts/usb.js"
   },
   "dependencies": {
     "@react-native-ml-kit/text-recognition": "^2.0.0",

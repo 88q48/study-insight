@@ -12,7 +12,7 @@ import { NativeModules, Platform } from 'react-native';
  * 只有当自动推导不出来、或者想强制指定某台机器时，才在这里填。
  * 例如：const API_HOST_OVERRIDE = '192.168.1.8';
  */
-const API_HOST_OVERRIDE = '';
+const API_HOST_OVERRIDE = '127.0.0.1';
 
 const API_PORT = 8010;
 

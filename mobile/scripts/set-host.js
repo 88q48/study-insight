@@ -38,6 +38,7 @@ function showUsage(current) {
   console.log('');
   console.log('用法：');
   console.log('  node scripts/set-host.js 192.168.10.103   指定 IP');
+  console.log('  node scripts/set-host.js usb              改用 USB 模式（127.0.0.1 + adb reverse）');
   console.log('  node scripts/set-host.js auto             改回自动推导');
   console.log('');
   console.log('本机 IP（可直接用）：');
@@ -80,6 +81,10 @@ function main() {
   let next;
   if (arg === 'auto' || arg === 'reset') {
     next = QUOTE + QUOTE;
+  } else if (arg === 'usb') {
+    // USB 模式：手机连 127.0.0.1，靠 adb reverse 转到电脑。
+    // 好处是完全不关心 WiFi 网段，凌零卡的就是这个。
+    next = QUOTE + '127.0.0.1' + QUOTE;
   } else {
     const ok = arg.split('').every(function (ch) {
       return /[0-9a-zA-Z.-]/.test(ch);
@@ -109,6 +114,11 @@ function main() {
   console.log('  现在：' + next);
   console.log('');
   console.log('下一步（二选一）：');
+  if (arg === 'usb') {
+    console.log('  USB 模式还差一步，手机插上后执行：');
+    console.log('    npm run usb');
+    console.log('');
+  }
   console.log('  1. 重启 Metro，App 重新加载即可');
   console.log('  2. 重新打包：cd android 然后 gradlew.bat :app:assembleDebug');
 }
