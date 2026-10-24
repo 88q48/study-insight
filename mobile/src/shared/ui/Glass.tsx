@@ -12,8 +12,8 @@ import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAppColors } from '../theme/colors';
 
 /**
- * 灰白背景上的柔光层，为半透明玻璃控件提供可感知的折射底座。
- * 这是纯 RN 实现，不依赖原生模糊库，真机与模拟器表现一致。
+ * 纯色背景层。全部装饰性圆形已移除，只保留主界面底色。
+ * 仍然保留该组件，避免各页面重复处理背景。
  */
 export function GlassBackdrop() {
   const colors = useAppColors();
@@ -21,30 +21,7 @@ export function GlassBackdrop() {
     <View
       pointerEvents="none"
       style={[styles.backdrop, {backgroundColor: colors.background}]}
-    >
-      <View
-        style={[
-          styles.blob,
-          styles.blobTop,
-          {backgroundColor: colors.glassHighlight},
-        ]}
-      />
-      <View
-        style={[
-          styles.blob,
-          styles.blobLeft,
-          {backgroundColor: colors.glass},
-        ]}
-      />
-      <View
-        style={[
-          styles.blob,
-          styles.blobRight,
-          {backgroundColor: 'rgba(0,0,0,0.28)'},
-        ]}
-      />
-      <View style={[styles.haze, {backgroundColor: colors.glass}]} />
-    </View>
+    />
   );
 }
 
@@ -100,7 +77,6 @@ export function GlassPanel({
             },
           ]}
         />
-        <View pointerEvents="none" style={[styles.panelGlow, {backgroundColor: colors.glassHighlight}]} />
         <View style={contentStyle}>{children}</View>
       </View>
     </View>
@@ -170,7 +146,6 @@ export function GlassButton({
             {backgroundColor: isDark ? 'rgba(255,255,255,0.3)' : colors.glassEdge},
           ]}
         />
-        <View pointerEvents="none" style={[styles.buttonGlow, {backgroundColor: colors.glassHighlight}]} />
         {label ? (
           <Text style={[styles.buttonLabel, {color: labelColor}, textStyle]}>
             {label}
@@ -346,7 +321,6 @@ export function GlassSegmented<T extends string>({
             },
           ]}
         >
-          <View style={[styles.segmentThumbGlow, {backgroundColor: colors.glassHighlight}]} />
         </Animated.View>
       ) : null}
       {options.map(option => {
@@ -385,41 +359,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    overflow: 'hidden',
-    backgroundColor: '#EDEFF2',
-  },
-  blob: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  blobTop: {
-    width: 420,
-    height: 420,
-    right: -150,
-    top: -210,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  blobLeft: {
-    width: 360,
-    height: 360,
-    left: -190,
-    top: 420,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
-  blobRight: {
-    width: 300,
-    height: 300,
-    right: -130,
-    bottom: 80,
-    backgroundColor: 'rgba(196,202,210,0.28)',
-  },
-  haze: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 320,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#000000',
   },
   panelShadow: {
     shadowOpacity: 0.13,
@@ -437,15 +377,6 @@ const styles = StyleSheet.create({
     right: 12,
     top: 0,
     height: 1,
-  },
-  panelGlow: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    right: -40,
-    top: -110,
-    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   buttonShadow: {
     shadowRadius: 18,
@@ -467,15 +398,6 @@ const styles = StyleSheet.create({
     right: 16,
     top: 0,
     height: 1,
-  },
-  buttonGlow: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    right: -30,
-    top: -80,
-    backgroundColor: 'rgba(255,255,255,0.24)',
   },
   buttonLabel: {
     fontSize: 16,
@@ -556,15 +478,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},
     elevation: 3,
-  },
-  segmentThumbGlow: {
-    position: 'absolute',
-    left: -20,
-    right: -20,
-    top: -30,
-    height: 50,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.42)',
   },
   segmentButton: {
     flex: 1,

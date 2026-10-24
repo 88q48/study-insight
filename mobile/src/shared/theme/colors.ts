@@ -64,8 +64,8 @@ export const lightColors: AppColors = {
  * 固定使用该套令牌，不跟随系统深色/浅色设置切换。
  */
 export const darkColors: AppColors = {
-  background: '#181A1D',
-  surface: 'rgba(61,64,69,0.58)',
+  background: '#000000',
+  surface: '#2B2E33',
   surfaceAlt: '#15171A',
   surfaceMuted: 'rgba(255,255,255,0.07)',
   border: 'rgba(255,255,255,0.13)',
