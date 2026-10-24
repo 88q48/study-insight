@@ -8,6 +8,8 @@
 - GET    /api/v1/devices/{device_id}/analysis  正式分析接口（11 个顶层字段）
 - GET    /api/v1/analysis                      兼容旧路径，返回同样结构
 - GET    /api/v1/devices/{device_id}/sync      同步信息
+- POST   /api/v1/ocr/parse                     上传图片 → 百度OCR + 大模型结构化
+- POST   /api/v1/ocr/split                     传一段文字 → 本地规则切分（不联网）
 - GET    /api/v1/health                        健康检查
 
 启动：python main.py（默认 8010，可用 $env:PORT 覆盖）
@@ -28,6 +30,29 @@ from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+# 先读 .env 再 import 其它模块：ocr_router 在模块顶层就要取密钥，
+# 顺序反了会读到空值，OCR 直接降级成不可用。
+def _load_dotenv(path: Path) -> None:
+    """极简 .env 加载器，不引新依赖。
+
+    只处理 KEY=VALUE 和 # 注释，够用就行。
+    已存在的环境变量不覆盖，方便 CI 或临时 export 抢先。
+    """
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_load_dotenv(Path(__file__).resolve().parent / ".env")
 
 import analytics
 import db
@@ -57,7 +82,8 @@ if _WEB_DIR.is_dir():
     app.mount("/dashboard", StaticFiles(directory=str(_WEB_DIR), html=True), name="dashboard")
 
 
-# OCR 解析：POST /api/v1/ocr/parse，把前端 OCR 出的长文本切成填表字段
+# OCR 纯文本切分：POST /api/v1/ocr/split
+# （图片上传那条在 /api/v1/ocr/parse，由上面的 ocr_router 提供）
 app.include_router(ocr_routes.router)
 
 

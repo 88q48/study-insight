@@ -34,14 +34,19 @@ class OcrParseOut(BaseModel):
 
 
 @router.post(
-    "/api/v1/ocr/parse",
+    "/api/v1/ocr/split",
     response_model=OcrParseOut,
-    summary="解析 OCR 长文本并切分题目",
+    summary="把一段现成的文字切成填表字段（不走 OCR）",
 )
-def parse_ocr(payload: OcrParseIn):
-    """前端 OCR 拿到整段文字后调这里，返回可直接填表的字段。
+def split_ocr(payload: OcrParseIn):
+    """把已有文字切分归类，不调任何外部服务。
 
-    只做切分和归类，不落库；用户确认后由前端自己调 POST /api/v1/errors。
+    两种用途：
+    - 手机上拍照后百度 OCR 成功、但大模型解析失败时，后端内部调它兜底
+    - 用户手动粘贴一段题目文字，想自动拆成科目 / 题型 / 题干 / 答案
+
+    路径故意和 /api/v1/ocr/parse 分开：那条接图片上传，这条接 JSON。
+    两个都挂 /parse 会让 FastAPI 只认先注册的那个，另一条静默失效。
     """
     if not payload.text or not payload.text.strip():
         raise HTTPException(status_code=422, detail="text 不能为空")

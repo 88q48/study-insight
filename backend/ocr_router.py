@@ -1,30 +1,52 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from aip import AipOcr
-from openai import OpenAI
 import re
 import json
+import os
+
+import ocr_parser
 
 router = APIRouter()
 
-APP_ID = "124538109"
-API_KEY = "bst7pscw8Dam9be1kDLL3VxG"
-SECRET_KEY = "yHJ4ptDYfZxhNxBA1kynUhCj0dTXhgqr"
-client = AipOcr(APP_ID, API_KEY, SECRET_KEY)
+# 密钥一律从环境变量读，不写进源码。
+# 这两个服务都是按量计费的，密钥进 git 等于把钱包交出去。
+APP_ID = os.getenv("BAIDU_OCR_APP_ID", "").strip()
+API_KEY = os.getenv("BAIDU_OCR_API_KEY", "").strip()
+SECRET_KEY = os.getenv("BAIDU_OCR_SECRET_KEY", "").strip()
+LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
 
+# 缺密钥时不要 import 对应 SDK 就崩，而是把功能降级成「不可用」，
+# 让后端整体还能起来，其他接口照常工作。
+client = None
+if APP_ID and API_KEY and SECRET_KEY:
+    try:
+        from aip import AipOcr
 
-LLM_API_KEY = "sk-5bf69776bb0e4921badca4d1b06c6cd0" 
+        client = AipOcr(APP_ID, API_KEY, SECRET_KEY)
+    except ImportError:
+        print("[ocr] 缺 baidu-aip，图片识别不可用。装一下：pip install baidu-aip")
+elif not all([APP_ID, API_KEY, SECRET_KEY]):
+    print("[ocr] 没配百度 OCR 密钥，图片识别不可用（见 backend/.env.example）")
 
 llm_client = None
 if LLM_API_KEY and LLM_API_KEY.startswith("sk-"):
-    llm_client = OpenAI(
-        api_key=LLM_API_KEY, 
-        base_url="https://api.deepseek.com" 
-    )
+    try:
+        from openai import OpenAI
+
+        llm_client = OpenAI(api_key=LLM_API_KEY, base_url="https://api.deepseek.com")
+    except ImportError:
+        print("[ocr] 缺 openai SDK，大模型解析不可用。装一下：pip install openai")
+elif not LLM_API_KEY:
+    print("[ocr] 没配 DeepSeek 密钥，大模型解析不可用（会自动退回本地规则切分）")
 
 
 
 def call_baidu_ocr(image_bytes: bytes) -> str:
     """调用百度 OCR 识别文字，并包含错误拦截"""
+    if client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="未配置百度 OCR 密钥，图片识别不可用。见 backend/.env.example",
+        )
     try:
         result = client.basicGeneral(image_bytes)
         
@@ -111,19 +133,28 @@ async def ocr_parse(file: UploadFile = File(...)):
     
     # 5. 组装返回给前端的最终结果
     if parsed_data:
-        return {
-            "raw_text": cleaned_text,
-            "subject": parsed_data.get("subject", ""),
-            "question_type": parsed_data.get("question_type", ""),
-            "question_content": parsed_data.get("question_content", ""),
-            "answer": parsed_data.get("answer", "")
-        }
+        subject = parsed_data.get("subject", "")
+        qtype = parsed_data.get("question_type", "")
+        content = parsed_data.get("question_content", "")
+        answer = parsed_data.get("answer", "")
+        source = "llm"
     else:
-        # 兜底：如果大模型挂了，至少返回干净的长文本给前端，不让页面崩溃
-        return {
-            "raw_text": cleaned_text,
-            "subject": "未知科目",
-            "question_type": "未知题型",
-            "question_content": cleaned_text, 
-            "answer": ""
-        }
+        # 大模型没配或调用失败，用本地规则切分兜底。
+        # 只认字符特征（科目关键词、题号、选项），不依赖网络和额度，
+        # 演示时外网断了也能出结果，不至于整页空白。
+        local = ocr_parser.parse(cleaned_text)
+        subject = local.get("subject", "")
+        qtype = local.get("question_type", "")
+        content = local.get("question_content", "") or cleaned_text
+        answer = local.get("answer", "")
+        source = "local"
+
+    return {
+        "raw_text": cleaned_text,
+        "subject": subject,
+        "question_type": qtype,
+        "question_content": content,
+        "answer": answer,
+        # 前端可以据此提示「这条是本地规则识别的，请核对一下」
+        "parser": source,
+    }
