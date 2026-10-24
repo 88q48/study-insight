@@ -119,9 +119,12 @@ python -m http.server 8080
 ```bash
 cd backend
 pip install -r requirements.txt      # 装依赖
-cp .env.example .env                 # 配密钥，.env 不进 git
+python apply_keys.py                 # 生成 .env（.env 不进 git）
 python main.py                       # 起服务，默认 8010
 ```
+
+`apply_keys.py` 里存的是 base64 编码过的密钥，跑一次解码写进 `backend/.env`。
+想换密钥就改脚本里那四个常量再跑一遍，`--dry-run` 可以只看会写哪些字段。
 
 `.env` 里需要填四组值，缺了只会让 OCR 不可用，其它接口照常：
 
