@@ -8,12 +8,18 @@ import ocr_split
 
 router = APIRouter()
 
-# 当前演示环境把百度 OCR 凭据内置，开箱即用。
-# DeepSeek 密钥因为 GitHub 推送保护不能进仓库，从 backend/.env 读取。
-# 环境变量仍然优先，方便以后换账号；正式上线前建议全部改回只读环境变量。
-DEFAULT_BAIDU_OCR_APP_ID = "124538668"
-DEFAULT_BAIDU_OCR_API_KEY = "yOxFOsrvg6wOhJMCaHfihfvL"
-DEFAULT_BAIDU_OCR_SECRET_KEY = "YOf1cPUkjArQe29wPtyHaTi3XcnkSlVd"
+# 凭据一律从 backend/.env 或环境变量读，源码里不留任何默认值。
+# 仓库是公开的，写在这里等于公开送人刷额度——之前就这么漏过一对。
+#
+# 第一次跑：python apply_keys.py   （会生成 .env）
+# 或者手动在 backend/.env 里填：
+#   BAIDU_OCR_APP_ID=...
+#   BAIDU_OCR_API_KEY=...
+#   BAIDU_OCR_SECRET_KEY=...
+#   DEEPSEEK_API_KEY=...
+DEFAULT_BAIDU_OCR_APP_ID = ""
+DEFAULT_BAIDU_OCR_API_KEY = ""
+DEFAULT_BAIDU_OCR_SECRET_KEY = ""
 DEFAULT_DEEPSEEK_API_KEY = ""
 
 APP_ID = (
