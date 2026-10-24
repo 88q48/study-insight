@@ -14,7 +14,7 @@ import {
 import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
 
-import { createError } from '../api';
+import { createError } from '../../shared/api/client';
 
 export default function EntryScreen() {
   const [subject, setSubject] = useState('');

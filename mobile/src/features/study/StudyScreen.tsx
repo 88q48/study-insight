@@ -12,13 +12,9 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import {
-  ErrorItem,
-  answerOf,
-  fetchErrors,
-  markMastered,
-  questionOf,
-} from '../api';
+import { fetchErrors, markMastered } from '../../shared/api/client';
+import type { ErrorItem } from '../../shared/api/types';
+import { answerOf, questionOf } from '../../shared/domain/error';
 
 export default function StudyScreen() {
   const [questions, setQuestions] = useState<ErrorItem[]>([]);

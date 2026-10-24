@@ -2,6 +2,24 @@
 
 错题录入与复习的 Android/iOS 客户端。数据直连 `backend` 的 8010 端口，设备标识统一为 `android_emulator_01`。
 
+## 代码结构
+
+```text
+src/
+├── app/navigation/          # 底部 Tab 与路由类型
+├── shared/
+│   ├── api/                 # 请求函数与接口类型
+│   ├── config/              # 后端地址、设备 ID
+│   └── domain/              # 题目/答案等公共业务逻辑
+└── features/
+    ├── entry/               # 录入
+    ├── study/               # 学习
+    ├── mistakes/            # 错题
+    └── profile/             # 我的
+```
+
+依赖方向固定为 `app → features → shared`，feature 之间不要互相 import。
+
 ## 环境要求
 
 - Node.js >= 22
@@ -19,7 +37,7 @@ D:\Android\Sdk
 
 ## 后端地址
 
-统一在 `src/config.ts` 配置：
+统一在 `src/shared/config/index.ts` 配置：
 
 - Android 模拟器：`http://10.0.2.2:8010`（指向宿主机）
 - iOS 模拟器：`http://127.0.0.1:8010`

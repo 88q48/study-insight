@@ -2,7 +2,9 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { ErrorItem, fetchErrors, questionOf } from '../api';
+import { fetchErrors } from '../../shared/api/client';
+import type { ErrorItem } from '../../shared/api/types';
+import { questionOf } from '../../shared/domain/error';
 
 export default function MistakesScreen() {
   const [data, setData] = useState<ErrorItem[]>([]);

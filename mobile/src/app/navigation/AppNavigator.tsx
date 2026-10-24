@@ -2,12 +2,13 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
-import EntryScreen from '../screens/EntryScreen';
-import StudyScreen from '../screens/StudyScreen';
-import MistakesScreen from '../screens/MistakesScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import { EntryScreen } from '../../features/entry';
+import { StudyScreen } from '../../features/study';
+import { MistakesScreen } from '../../features/mistakes';
+import { ProfileScreen } from '../../features/profile';
+import type { RootTabParamList } from './types';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function AppNavigator() {
   return (

@@ -2,8 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { ErrorStats, fetchAnalysis } from '../api';
-import { DEVICE_ID } from '../config';
+import { fetchAnalysis } from '../../shared/api/client';
+import type { ErrorStats } from '../../shared/api/types';
+import { DEVICE_ID } from '../../shared/config';
 
 const EMPTY_STATS: ErrorStats = {
   total_errors: 0,
