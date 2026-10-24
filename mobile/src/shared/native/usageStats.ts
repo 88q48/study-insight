@@ -64,7 +64,7 @@ export async function setUsageSyncCursor(value: number): Promise<void> {
   try {
     await nativeUsageStats.setLastSync(value);
   } catch {
-    // 下一次同步会重新读取游标；失败不会丢已经上传的数据。
+    // 下一次同步会重新读取游标；失败不会丢已经保存在本机的数据。
   }
 }
 

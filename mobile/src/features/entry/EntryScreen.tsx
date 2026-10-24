@@ -22,9 +22,14 @@ import TextRecognition, {
 } from '@react-native-ml-kit/text-recognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createError, parseOcrImage } from '../../shared/api/client';
-import type { OcrQuestion } from '../../shared/api/client';
-import type { QuestionType } from '../../shared/api/types';
+import {
+  createError,
+  parseOcrImage,
+  parseOcrText,
+  toOcrQuestions,
+} from '../../shared/api/client';
+import type {OcrQuestion} from '../../shared/api/client';
+import type {QuestionType} from '../../shared/api/types';
 import { CHOICE_KEYS } from '../../shared/domain/error';
 import type { ChoiceKey } from '../../shared/domain/error';
 import { useAppColors } from '../../shared/theme/colors';
@@ -159,6 +164,7 @@ export default function EntryScreen() {
       maxWidth: 1200,
       maxHeight: 1200,
       quality: 0.8 as const,
+      includeBase64: true,
     };
 
     try {
@@ -177,9 +183,11 @@ export default function EntryScreen() {
         return;
       }
 
-      const imageUri = response.assets?.[0]?.uri;
+      const asset = response.assets?.[0];
+      const imageUri = asset?.uri;
+      const imageBase64 = asset?.base64;
       if (imageUri) {
-        await recognizeImage(imageUri);
+        await recognizeImage(imageUri, imageBase64);
       }
     } catch (err) {
       console.error(err);
@@ -187,30 +195,15 @@ export default function EntryScreen() {
     }
   };
 
-  const recognizeImage = async (imageUri: string) => {
-    setIsOcrLoading(true);
-    try {
-      // 优先走后端云端 OCR（百度 OCR + DeepSeek 结构化），
-      // 后端不可用时再退回手机本地的 ML Kit，保证离线也能录题。
-      const cloud = await parseOcrImage(imageUri);
-
-      // 后端会把整页切成多道题。老后端没有 questions 字段，
-      // 这时把顶层那几个字段当成唯一一道，行为跟以前一样。
-      const fromCloud: OcrQuestion[] =
-        cloud.questions && cloud.questions.length
-          ? cloud.questions
-          : [
-              {
-                index: 1,
-                subject: cloud.subject || '',
-                question_type: cloud.question_type || '',
-                question_content: cloud.question_content || cloud.raw_text || '',
-                answer: cloud.answer || '',
-                parser: cloud.parser,
-              },
-            ];
-
-      const detected = fromCloud.filter(
+  const recognizeImage = async (
+    imageUri: string,
+    imageBase64?: string,
+  ) => {
+    const presentDetected = (
+      items: OcrQuestion[],
+      source: 'cloud' | 'local',
+    ) => {
+      const detected = items.filter(
         item => (item.question_content || '').trim().length > 0,
       );
       if (!detected.length) {
@@ -220,7 +213,12 @@ export default function EntryScreen() {
       if (detected.length === 1) {
         applyQuestion(detected[0]);
         setQueue([]);
-        Alert.alert('识别完成', '题目已填入，请核对科目和知识点后保存。');
+        Alert.alert(
+          source === 'cloud' ? '识别完成' : '本地识别完成',
+          source === 'cloud'
+            ? '题目已填入，请核对科目、题型和答案后保存。'
+            : '云端暂不可用，已用手机本地识别。请核对题型和答案。',
+        );
         return;
       }
 
@@ -228,6 +226,17 @@ export default function EntryScreen() {
       setPickerItems(detected);
       setPickedIndexes(new Set(detected.map((_, index) => index)));
       setPickerVisible(true);
+    };
+
+    setIsOcrLoading(true);
+    try {
+      // 优先在手机上直接调用百度 OCR，不经过电脑后端。
+      // 云端失败（无网、额度、凭据）时再退回 ML Kit 本地识别。
+      if (!imageBase64) {
+        throw new Error('没有拿到图片数据');
+      }
+      const cloud = await parseOcrImage(imageBase64);
+      presentDetected(toOcrQuestions(cloud), 'cloud');
     } catch {
       try {
         const result = await TextRecognition.recognize(
@@ -238,8 +247,7 @@ export default function EntryScreen() {
         if (!text) {
           throw new Error('没有识别到文字，请换个角度再拍一张。');
         }
-        setQuestion(text);
-        Alert.alert('识别完成', '已用手机本地识别，请核对内容后保存。');
+        presentDetected(toOcrQuestions(parseOcrText(text)), 'local');
       } catch (localError) {
         const message =
           localError instanceof Error ? localError.message : '请手动输入题目';

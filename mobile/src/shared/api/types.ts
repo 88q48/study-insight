@@ -126,7 +126,7 @@ export interface SubjectOption {
   count: number;
 }
 
-/** 上传到 /api/v1/events/batch 的应用使用记录。 */
+/** 手机本地保存的应用使用记录。 */
 export interface UsageEventUpload {
   event_id: string;
   device_id: string;
