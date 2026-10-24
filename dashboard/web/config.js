@@ -14,7 +14,10 @@
  */
 window.CONFIG = {
   // true = 用 mock-data.js 里的数据；false = 请求后端
-  USE_MOCK: true,
+  // 默认 false：后端挂着 /dashboard 时走同源请求，拿真实数据。
+  // 双击 file:// 打开时同源请求会失败，FALLBACK_TO_MOCK 会自动兜回演示数据，
+  // 所以断网演示也不会白屏。
+  USE_MOCK: false,
 
   // 后端接口前缀。留空表示按同源推导（后端挂 /dashboard 时最省事）
   // 本机联调也可以直接写 "http://127.0.0.1:8010/api/v1"

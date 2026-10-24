@@ -42,6 +42,22 @@ import type { RootStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'PracticeSession'>;
 type Feedback = 'correct' | 'wrong' | null;
 
+function dedupeQuestions(items: ErrorItem[]): ErrorItem[] {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    const normalized = (questionOf(item) || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    const key = normalized || `id:${item.error_id}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 export default function PracticeSessionScreen({route, navigation}: Props) {
   const {subject, limit} = route.params;
   const insets = useSafeAreaInsets();
@@ -63,10 +79,11 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     let active = true;
     setLoading(true);
     setError('');
-    fetchPracticeErrors(subject, limit)
+    fetchPracticeErrors(subject, Math.min(limit + 20, 200))
       .then(result => {
         if (active) {
-          setQuestions(result.items);
+          // 后端已按题干去重；客户端再兜底一次，避免旧接口缓存导致同题重复。
+          setQuestions(dedupeQuestions(result.items).slice(0, limit));
           setCurrentIndex(0);
         }
       })
@@ -651,7 +668,3 @@ const makeStyles = (colors: AppColors) =>
       borderWidth: 7,
     },
   });
-
-
-
-

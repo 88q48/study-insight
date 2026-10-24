@@ -26,8 +26,8 @@ class MainActivity : ReactActivity() {
     }
 
     WindowInsetsControllerCompat(window, window.decorView).apply {
-      isAppearanceLightStatusBars = true
-      isAppearanceLightNavigationBars = true
+      isAppearanceLightStatusBars = false
+      isAppearanceLightNavigationBars = false
     }
   }
 
