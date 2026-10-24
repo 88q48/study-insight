@@ -84,6 +84,8 @@ const makeStyles = (colors: AppColors) =>
     },
     segmentActive: {
       backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
       shadowColor: colors.shadow,
       shadowOpacity: 0.08,
       shadowRadius: 8,

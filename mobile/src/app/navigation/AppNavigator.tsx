@@ -53,7 +53,11 @@ function DockTabBar({ state, navigation }: BottomTabBarProps) {
       <View
         style={[
           styles.dock,
-          {backgroundColor: colors.dock, shadowColor: colors.shadow},
+          {
+            backgroundColor: colors.dock,
+            borderColor: colors.border,
+            shadowColor: colors.shadow,
+          },
         ]}
       >
         {state.routes.map((route, index) => {
@@ -133,6 +137,7 @@ const styles = StyleSheet.create({
   dock: {
     height: DOCK_HEIGHT,
     borderRadius: DOCK_HEIGHT / 2,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
