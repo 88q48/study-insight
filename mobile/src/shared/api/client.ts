@@ -1,4 +1,5 @@
 import { ANALYSIS_DAYS, API_BASE_URL, DEVICE_ID } from '../config';
+import { handleOffline } from './offline';
 import type {
   Analysis,
   ErrorItem,
@@ -19,9 +20,11 @@ async function request<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
+  const method = options.method || 'GET';
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: options.method || 'GET',
+      method,
       headers: {'Content-Type': 'application/json'},
       body: options.body,
       signal: controller.signal,
@@ -38,10 +41,29 @@ async function request<T>(
     if (!response.ok) {
       const detail =
         (body && (body.detail || body.message)) || text || `HTTP ${response.status}`;
-      throw new Error(String(detail));
+      const httpError = new Error(String(detail));
+      // 服务器答话了，就是它说不行。这种错误不能拿本地假数据顶替。
+      (httpError as any).__answeredByServer = true;
+      throw httpError;
     }
     return body as T;
   } catch (error) {
+    if (error instanceof Error && (error as any).__answeredByServer) {
+      throw error;
+    }
+
+    // 走不到服务器：可能是没连电脑，也可能只是断网。
+    // 内置快照能应付就先用着，界面不该因为少了个后端就空白一片。
+    const fallback = handleOffline(path, method, options.body);
+    if (fallback !== null) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('[api] 后端没响应，已切到本地演示数据', path);
+      } else {
+        console.warn('[api] 连不上后端，已切到本地演示数据', path);
+      }
+      return fallback as T;
+    }
+
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('请求超时，请确认后端服务已启动');
     }

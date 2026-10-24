@@ -239,7 +239,7 @@ export default function EntryScreen() {
           throw new Error('没有识别到文字，请换个角度再拍一张。');
         }
         setQuestion(text);
-        Alert.alert('本地识别完成', '云端暂不可用，已使用手机本地识别。');
+        Alert.alert('识别完成', '已用手机本地识别，请核对内容后保存。');
       } catch (localError) {
         const message =
           localError instanceof Error ? localError.message : '请手动输入题目';
