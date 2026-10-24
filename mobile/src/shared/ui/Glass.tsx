@@ -286,6 +286,13 @@ export function GlassSegmented<T extends string>({
     }).start();
   }, [activeIndex, slide]);
 
+  // translateX 缓存起来。原来在 render 里直接写 Animated.multiply，
+  // 每次父组件重渲染都会新建一个动画节点，滑动时白掉帧。
+  const thumbTranslate = useMemo(
+    () => Animated.multiply(slide, segmentWidth),
+    [slide, segmentWidth],
+  );
+
   const trackColors = useMemo(
     () => ({
       track: {
@@ -317,11 +324,7 @@ export function GlassSegmented<T extends string>({
             trackColors.thumb,
             {
               width: segmentWidth,
-              transform: [
-                {
-                  translateX: Animated.multiply(slide, segmentWidth),
-                },
-              ],
+              transform: [{translateX: thumbTranslate}],
             },
           ]}
         >

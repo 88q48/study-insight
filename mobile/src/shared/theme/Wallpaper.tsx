@@ -37,6 +37,9 @@ const KEY_WALLPAPER = 'home_wallpaper_id';
 const KEY_CUSTOM_URI = 'home_wallpaper_custom_uri';
 const KEY_OPACITY = 'home_wallpaper_opacity';
 
+/** 自定义壁纸的模糊半径。相机照片太锐利，模糊后卡片上的文字才读得舒服。 */
+const BLUR_RADIUS = 18;
+
 function clampOpacity(value: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_OPACITY;
@@ -165,9 +168,12 @@ export function WallpaperVisual({
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {wallpaperId === 'custom' && customUri ? (
+        // blurRadius 走原生层，不占 JS 线程。
+        // 卡片是半透明的，底下这层糊一点，透出来的才像磨砂玻璃而不是照片。
         <Image
           source={{uri: customUri}}
           resizeMode="cover"
+          blurRadius={BLUR_RADIUS}
           style={StyleSheet.absoluteFill}
         />
       ) : preset && preset.colors.length ? (

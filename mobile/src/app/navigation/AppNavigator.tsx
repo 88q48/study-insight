@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
@@ -6,9 +6,11 @@ import type {
   BottomTabBarProps,
   BottomTabNavigationProp,
 } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
+  Animated,
+  Easing,
   Keyboard,
   PanResponder,
   Pressable,
@@ -70,9 +72,35 @@ function SwipeableTab({
     [current, navigation],
   );
 
+  // tab 页面切回来时做一次淡入。tab 页不会被销毁，所以靠 focused
+  // 变化重放动画，而不是靠挂载。只动 opacity 和 transform，走原生驱动。
+  const isFocused = useIsFocused();
+  const fade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    fade.setValue(0);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 170,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [isFocused, fade]);
+
+  const rise = fade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 0],
+  });
+
   return (
     <View style={styles.swipeArea} {...panResponder.panHandlers}>
-      {children}
+      <Animated.View
+        style={[styles.swipeInner, {opacity: fade, transform: [{translateY: rise}]}]}>
+        {children}
+      </Animated.View>
     </View>
   );
 }
@@ -263,6 +291,7 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
+  swipeInner: {flex: 1},
   swipeArea: {flex: 1},
   dockWrap: {
     position: 'absolute',

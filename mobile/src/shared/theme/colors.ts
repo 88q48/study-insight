@@ -65,7 +65,8 @@ export const lightColors: AppColors = {
  */
 export const darkColors: AppColors = {
   background: '#000000',
-  surface: '#2B2E33',
+  // 半透明玻璃：壁纸能透出来一点，卡片才有厚度
+  surface: 'rgba(43,46,51,0.76)',
   surfaceAlt: '#15171A',
   surfaceMuted: 'rgba(255,255,255,0.07)',
   border: 'rgba(255,255,255,0.13)',
@@ -87,7 +88,7 @@ export const darkColors: AppColors = {
   dock: 'rgba(44,47,51,0.62)',
   glass: 'rgba(255,255,255,0.08)',
   glassStrong: 'rgba(255,255,255,0.16)',
-  glassBorder: 'rgba(255,255,255,0.18)',
+  glassBorder: 'rgba(255,255,255,0.22)',
   glassHighlight: 'rgba(255,255,255,0.16)',
   glassEdge: 'rgba(255,255,255,0.24)',
 };
