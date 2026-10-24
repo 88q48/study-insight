@@ -16,8 +16,9 @@ window.CONFIG = {
   // true = 用 mock-data.js 里的数据；false = 请求后端
   USE_MOCK: true,
 
-  // 后端接口前缀
- API_BASE_URL: "http://10.0.2.2:8010/api/v1",
+  // 后端接口前缀。留空表示按同源推导（后端挂 /dashboard 时最省事）
+  // 本机联调也可以直接写 "http://127.0.0.1:8010/api/v1"
+  API_BASE_URL: "",
 
   // 接口路径：留一个就够，填后端实际给的那条
   ANALYSIS_PATH: "/analysis",
@@ -25,8 +26,8 @@ window.CONFIG = {
   // 连不上后端时是否自动退回 mock，避免页面空白
   FALLBACK_TO_MOCK: true,
 
-  // 当前设备标识
-  DEVICE_ID: "android_emulator_01",
+  // 当前设备标识（三端统一）
+  DEVICE_ID: "win_device_01",
 
   // 统计天数
   DAYS: 7,

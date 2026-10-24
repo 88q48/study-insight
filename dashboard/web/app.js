@@ -102,6 +102,47 @@
     return attempt(0);
   }
 
+  /* ---------- 数据归一化 ---------- */
+  // mock-data.js 和旧版后端的 knowledge_points 只有 error_count，
+  // 缺 mastered_count / reviewing_count，直接渲染会出现「还有 undefined 道」，
+  // 重做清单也会空掉。这里统一补齐，字段缺失时按总数反推。
+  function normalizeData(d) {
+    if (!d) { return d; }
+
+    (d.knowledge_points || []).forEach(function (p) {
+      var total = Number(p.error_count) || 0;
+      var mastered = p.mastered_count == null ? 0 : Number(p.mastered_count);
+      p.error_count = total;
+      p.mastered_count = mastered;
+      p.reviewing_count = p.reviewing_count == null
+        ? Math.max(total - mastered, 0)
+        : Number(p.reviewing_count) || 0;
+    });
+
+    (d.subject_distribution || []).forEach(function (s) {
+      s.error_count = Number(s.error_count) || 0;
+      s.mastered_count = Number(s.mastered_count) || 0;
+      if (s.reviewing_count == null) {
+        s.reviewing_count = Math.max(s.error_count - s.mastered_count, 0);
+      }
+      if (s.mastery_rate == null) {
+        s.mastery_rate = s.error_count
+          ? Math.round(s.mastered_count / s.error_count * 1000) / 10
+          : 0;
+      }
+    });
+
+    // 按待复习数降序，和「最该先处理」的说法保持一致
+    if (d.knowledge_points && d.knowledge_points.length) {
+      d.knowledge_points.sort(function (a, b) {
+        return (b.reviewing_count - a.reviewing_count) ||
+               (b.error_count - a.error_count);
+      });
+    }
+
+    return d;
+  }
+
   /* ---------- 图表容器 ---------- */
   function renderChart(id, option) {
     var el = document.getElementById(id);
@@ -404,8 +445,8 @@
       btn.addEventListener("click", function () { switchTab(btn.dataset.tab); });
     });
 
-    getData().then(function (data) {
-      DATA = data;
+    getData().then(function (raw) {
+      DATA = normalizeData(raw);
       renderMeta();
       // 按当前激活的 Tab 渲染，避免只认死错题面板
       var active = document.querySelector(".tab.active");
