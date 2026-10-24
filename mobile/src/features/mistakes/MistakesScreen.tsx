@@ -143,11 +143,29 @@ export default function MistakesScreen() {
 
             {isChoiceQuestion(item) && (
               <View style={styles.optionsBox}>
-                {CHOICE_KEYS.map(key => (
-                  <MathText key={key} style={styles.optionText}>
-                    {key}. {optionOf(item, key)}
-                  </MathText>
-                ))}
+                {CHOICE_KEYS.map(key => {
+                  const correct =
+                    (item.answer || '').trim().toUpperCase() === key;
+                  return (
+                    <View
+                      key={key}
+                      style={[
+                        styles.optionRow,
+                        correct && styles.optionRowCorrect,
+                      ]}>
+                      <MathText
+                        style={[
+                          styles.optionText,
+                          correct && styles.optionTextCorrect,
+                        ]}>
+                        {key}. {optionOf(item, key)}
+                      </MathText>
+                      {correct ? (
+                        <Text style={styles.correctBadge}>正确答案</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -281,7 +299,32 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 16,
       padding: 12,
     },
-    optionText: {fontSize: 14, color: colors.textSecondary, lineHeight: 22},
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+    },
+    optionRowCorrect: {
+      backgroundColor: colors.successSoft,
+      borderWidth: 1,
+      borderColor: colors.success,
+    },
+    optionText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 22,
+    },
+    optionTextCorrect: {color: colors.success, fontWeight: '700'},
+    correctBadge: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.success,
+      letterSpacing: 0.2,
+    },
     answerRow: {
       flexDirection: 'row',
       alignItems: 'center',

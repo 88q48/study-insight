@@ -23,6 +23,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import {
   fetchPracticeErrors,
+  markMastered,
   recordAttempt,
 } from '../../shared/api/client';
 import type { ErrorItem } from '../../shared/api/types';
@@ -72,6 +73,7 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [isMarkingMastered, setIsMarkingMastered] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const allowExitRef = useRef(false);
   const flash = useRef(new Animated.Value(0)).current;
@@ -184,6 +186,29 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
     } catch (err) {
       const message = err instanceof Error ? err.message : '请检查网络';
       Alert.alert('统计失败', `本次做题未记录：${message}`);
+    }
+  };
+
+  const handleMarkMastered = async () => {
+    if (!currentQ || currentQ.mastered || isMarkingMastered) {
+      return;
+    }
+    setIsMarkingMastered(true);
+    try {
+      const result = await markMastered(
+        currentQ.error_id,
+        (currentQ.review_count ?? 0) + 1,
+      );
+      setQuestions(current =>
+        current.map(item =>
+          item.error_id === result.error.error_id ? result.error : item,
+        ),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '请检查网络';
+      Alert.alert('标记失败', message);
+    } finally {
+      setIsMarkingMastered(false);
     }
   };
 
@@ -336,6 +361,9 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                     return (
                       <TouchableOpacity
                         key={key}
+                        accessibilityRole="button"
+                        accessibilityState={{selected}}
+                        accessibilityLabel={`选择答案${key}`}
                         style={[
                           styles.choiceBtn,
                           selected && styles.choiceBtnActive,
@@ -345,7 +373,14 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                         onPress={() => setUserAnswer(key)}
                         disabled={showResult}
                       >
-                        <Text style={styles.choiceText}>{key}</Text>
+                        <Text
+                          style={[
+                            styles.choiceText,
+                            selected && styles.choiceTextActive,
+                          ]}
+                        >
+                          {selected ? `✓ ${key}` : key}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -390,11 +425,31 @@ export default function PracticeSessionScreen({route, navigation}: Props) {
                         : '× 回答错误'
                       : '暂无标准答案，请对照题目自评'}
                   </Text>
+                  <Text style={styles.userAnswerText}>
+                    你的答案：{userAnswer.trim() || '未作答'}
+                  </Text>
                   {!isCorrect && hasAnswer && (
                     <MathText style={styles.correctAnswerText}>
                       正确答案：{correctAnswer}
                     </MathText>
                   )}
+                  {currentQ.mastered ? (
+                    <Text style={styles.masteredText}>✓ 已掌握</Text>
+                  ) : isCorrect && hasAnswer ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.secondaryBtn,
+                        styles.masteryBtn,
+                        isMarkingMastered && styles.btnDisabled,
+                      ]}
+                      onPress={handleMarkMastered}
+                      disabled={isMarkingMastered}
+                    >
+                      <Text style={styles.secondaryBtnText}>
+                        {isMarkingMastered ? '正在标记...' : '标记已掌握'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                   <TouchableOpacity
                     style={styles.primaryBtn}
                     onPress={handleNext}
@@ -604,8 +659,9 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
     },
     choiceBtnActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primarySoft,
+      borderColor: colors.text,
+      borderWidth: 2,
+      backgroundColor: colors.glassStrong,
     },
     choiceBtnCorrect: {
       borderColor: colors.success,
@@ -621,6 +677,7 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '700',
       color: colors.text,
     },
+    choiceTextActive: {fontWeight: '800'},
     input: {
       backgroundColor: colors.surfaceMuted,
       borderWidth: 1,
@@ -655,6 +712,24 @@ const makeStyles = (colors: AppColors) =>
     btnText: {color: colors.onPrimary, fontSize: 16, fontWeight: '700'},
     resultBox: {alignItems: 'center'},
     resultText: {fontSize: 20, fontWeight: '800', marginBottom: 10},
+    userAnswerText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 10,
+    },
+    masteredText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.success,
+      marginBottom: 16,
+    },
+    masteryBtn: {
+      marginTop: 0,
+      marginBottom: 12,
+      backgroundColor: colors.successSoft,
+      borderColor: colors.success,
+    },
+    btnDisabled: {opacity: 0.5},
     correctAnswerText: {
       fontSize: 16,
       color: colors.textSecondary,

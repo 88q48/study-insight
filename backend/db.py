@@ -238,15 +238,18 @@ def list_subjects(device_id: str) -> list[dict[str, Any]]:
 
 def record_attempt(error_id: str, correct: bool, device_id: str) -> dict[str, Any] | None:
     """原子累加一次做题结果，返回更新后的记录；设备不匹配返回 None。"""
+    correct_flag = 1 if correct else 0
     with connection() as conn:
         cursor = conn.execute(
             """
             UPDATE error_record
             SET attempt_count = attempt_count + 1,
-                correct_count = correct_count + ?
+                correct_count = correct_count + ?,
+                mastered = CASE WHEN ? = 0 THEN 0 ELSE mastered END,
+                mastered_at = CASE WHEN ? = 0 THEN NULL ELSE mastered_at END
             WHERE error_id = ? AND device_id = ?
             """,
-            (1 if correct else 0, error_id, device_id),
+            (correct_flag, correct_flag, correct_flag, error_id, device_id),
         )
         if cursor.rowcount == 0:
             return None

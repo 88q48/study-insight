@@ -126,7 +126,7 @@ D:\conda\envs\usage_stats\python.exe -c "import requests; r=requests.post('http:
 
 ### 第 4 步：用接口模拟标记已掌握（可选，40 秒）
 
-模拟后端收到一次掌握状态更新。手机端目前不提供这个按钮，这里只演示 `PATCH` 接口：
+模拟后端收到一次掌握状态更新。练习答对后，也可以在答题结果区点「标记已掌握」；这里演示同一套 `PATCH` 接口：
 
 ```cmd
 D:\conda\envs\usage_stats\python.exe -c "import requests; p=requests.patch('http://127.0.0.1:8010/api/v1/errors/demo_live_01', json={'mastered':True,'review_count':1}); print(p.status_code, p.json()['status'])"

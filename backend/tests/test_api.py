@@ -494,6 +494,47 @@ def test_attempt_without_answer_is_skipped():
     client.delete(f"/api/v1/errors/err_no_answer?device_id={DEVICE}")
 
 
+def test_wrong_attempt_resets_mastered():
+    """答错会取消已掌握；答对不会自动标记，掌握状态由用户手动确认。"""
+    created = client.post(
+        "/api/v1/errors",
+        json={
+            "error_id": "err_mastery_reset",
+            "device_id": DEVICE,
+            "subject": "数学",
+            "knowledge_point": "函数",
+            "content": "选择题：1+1 等于？",
+            "answer": "A",
+            "question_type": "choice",
+            "option_a": "2",
+            "option_b": "3",
+            "option_c": "4",
+            "option_d": "5",
+            "mastered": True,
+            "created_at": _iso(_now()),
+        },
+    )
+    assert created.status_code == 201
+
+    wrong = client.post(
+        "/api/v1/errors/err_mastery_reset/attempts",
+        json={"device_id": DEVICE, "answer": "B"},
+    )
+    assert wrong.status_code == 200
+    body = wrong.json()
+    assert body["correct"] is False
+    assert body["error"]["mastered"] is False
+    assert body["error"]["mastered_at"] is None
+
+    right = client.post(
+        "/api/v1/errors/err_mastery_reset/attempts",
+        json={"device_id": DEVICE, "answer": "A"},
+    )
+    assert right.status_code == 200
+    assert right.json()["correct"] is True
+    assert right.json()["error"]["mastered"] is False
+
+
 # ---------- OCR：错误分类 ----------
 # 这几条锁的是「报错要能一眼看出该找谁」：
 # 凭据失效去找后端改 .env，额度超限等明天，图片不行重拍。

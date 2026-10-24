@@ -141,6 +141,13 @@ device           device_id(PK) platform registered_at
 | GET | `/api/v1/devices/{device_id}/sync` | 最近同步时间与条数 |
 | GET | `/api/v1/health` | 健康检查 |
 
+### 错题“已掌握”规则
+
+- 新录入的错题默认是 **待复习**（`mastered=false`）。
+- 练习答对不会自动变成已掌握；答题结果区会出现 **“标记已掌握”** 按钮，由用户确认。
+- 已经标记为已掌握的题，之后如果答错，后端会自动退回 **待复习**，并清空 `mastered_at`。
+- 演示库中已有的已掌握数量来自 `seed_demo.py`，不代表真实练习结果；需要全真数据时先清理 `err_demo_*`。
+
 ### summary 与 error_stats 已分开
 
 - `summary` 只放专注时长：`total_duration_seconds` / `avg_daily_seconds` / `median_daily_seconds` / `p90_daily_seconds`
