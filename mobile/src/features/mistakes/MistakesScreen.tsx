@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -10,9 +10,13 @@ import {
   optionOf,
   questionOf,
 } from '../../shared/domain/error';
+import { useAppColors } from '../../shared/theme/colors';
+import type { AppColors } from '../../shared/theme/colors';
 import MathText from '../../shared/ui/MathText';
 
 export default function MistakesScreen() {
+  const colors = useAppColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [data, setData] = useState<ErrorItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,8 +46,8 @@ export default function MistakesScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 10, color: '#666' }}>加载中...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, color: colors.textMuted }}>加载中...</Text>
       </View>
     );
   }
@@ -125,45 +129,46 @@ export default function MistakesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F6FC', padding: 12 },
+const makeStyles = (colors: AppColors) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surfaceAlt, padding: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: colors.border,
     elevation: 2,
-    shadowColor: '#1F2937',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subject: { fontSize: 14, color: '#3B6EF6', fontWeight: '700' },
+  subject: { fontSize: 14, color: colors.primary, fontWeight: '700' },
   typeBadge: {
     fontSize: 11,
-    color: '#3B5BDB',
-    backgroundColor: '#EAF1FF',
+    color: colors.primary,
+    backgroundColor: colors.primarySoft,
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  status: { fontSize: 12, color: '#8A94A6' },
-  question: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 8, lineHeight: 24 },
+  status: { fontSize: 12, color: colors.textMuted },
+  question: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 8, lineHeight: 24 },
   optionsBox: {
     marginBottom: 8,
     gap: 4,
-    backgroundColor: '#F8FAFF',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
     padding: 10,
   },
-  optionText: { fontSize: 14, color: '#3F4A5A', lineHeight: 22 },
-  answer: { fontSize: 14, color: '#6B7280' },
+  optionText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
+  answer: { fontSize: 14, color: colors.textSecondary },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -171,9 +176,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F8',
+    borderTopColor: colors.border,
   },
-  stats: { fontSize: 12.5, color: '#8A94A6' },
-  deleteText: { fontSize: 13, color: '#FF3B30', fontWeight: '600' },
-  emptyText: { textAlign: 'center', marginTop: 50, color: '#8A94A6', fontSize: 16 },
+  stats: { fontSize: 12.5, color: colors.textMuted },
+  deleteText: { fontSize: 13, color: colors.danger, fontWeight: '600' },
+  emptyText: { textAlign: 'center', marginTop: 50, color: colors.textMuted, fontSize: 16 },
 });

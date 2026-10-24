@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,10 @@ import {
   fetchSubjects,
   recordAttempt,
 } from '../../shared/api/client';
-import type { ErrorItem, SubjectOption } from '../../shared/api/types';
 import MathText from '../../shared/ui/MathText';
+import { useAppColors } from '../../shared/theme/colors';
+import type { AppColors } from '../../shared/theme/colors';
+import type { ErrorItem, SubjectOption } from '../../shared/api/types';
 import {
   CHOICE_KEYS,
   answerOf,
@@ -28,6 +30,8 @@ import {
 } from '../../shared/domain/error';
 
 export default function StudyScreen() {
+  const colors = useAppColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stage, setStage] = useState<'setup' | 'quiz'>('setup');
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('全部');
@@ -100,7 +104,7 @@ export default function StudyScreen() {
         <Text style={styles.setupHint}>选择题量和科目，优先安排错得多的题。</Text>
 
         {setupLoading ? (
-          <ActivityIndicator size="large" color="#3B6EF6" style={{marginTop: 30}} />
+          <ActivityIndicator size="large" color={colors.primary} style={{marginTop: 30}} />
         ) : (
           <>
             <View style={styles.setupCard}>
@@ -189,8 +193,8 @@ export default function StudyScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 10 }}>加载题库中...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 10, color: colors.textSecondary }}>加载题库中...</Text>
       </View>
     );
   }
@@ -317,7 +321,7 @@ export default function StudyScreen() {
               showResult && (isCorrect ? styles.inputCorrect : styles.inputWrong),
             ]}
             placeholder="在此输入你的答案..."
-            placeholderTextColor="#9AA4B2"
+            placeholderTextColor={colors.placeholder}
             value={userAnswer}
             onChangeText={setUserAnswer}
             editable={!showResult} // 提交后不可再修改
@@ -330,7 +334,7 @@ export default function StudyScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.resultBox}>
-            <Text style={[styles.resultText, { color: hasAnswer ? (isCorrect ? '#34C759' : '#FF3B30') : '#666' }]}>
+            <Text style={[styles.resultText, { color: hasAnswer ? (isCorrect ? colors.success : colors.danger) : colors.textMuted }]}>
               {hasAnswer ? (isCorrect ? '✅ 回答正确！' : '❌ 回答错误') : '📝 暂无标准答案，请对照题目自评'}
             </Text>
             {!isCorrect && hasAnswer && (
@@ -350,22 +354,23 @@ export default function StudyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F6FC', padding: 16 },
+const makeStyles = (colors: AppColors) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surfaceAlt, padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  emptyText: { fontSize: 18, color: '#666', textAlign: 'center' },
-  setupContainer: { flex: 1, backgroundColor: '#F4F5FF', paddingHorizontal: 20, paddingTop: 2 },
-  setupTitle: { fontSize: 30, fontWeight: '800', color: '#111827', marginTop: 4 },
-  setupHint: { fontSize: 15, color: '#6B7280', marginTop: 8, marginBottom: 18, lineHeight: 23 },
-  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 0, marginBottom: 10 },
+  emptyText: { fontSize: 18, color: colors.textMuted, textAlign: 'center' },
+  setupContainer: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 20, paddingTop: 2 },
+  setupTitle: { fontSize: 30, fontWeight: '800', color: colors.text, marginTop: 4 },
+  setupHint: { fontSize: 15, color: colors.textSecondary, marginTop: 8, marginBottom: 18, lineHeight: 23 },
+  sectionLabel: { fontSize: 15, fontWeight: '700', color: colors.textSecondary, marginTop: 0, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   setupCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#EEF0FA',
-    shadowColor: '#111827',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 18,
     shadowOffset: {width: 0, height: 8},
@@ -377,19 +382,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7F2',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
-  countCardActive: {backgroundColor: '#3B6EF6', borderColor: '#3B6EF6'},
-  countNumber: {fontSize: 22, fontWeight: '700', color: '#111827'},
-  countUnit: {fontSize: 12, color: '#6B7280', marginTop: 1},
-  countTextActive: {color: '#FFFFFF'},
+  countCardActive: {backgroundColor: colors.primaryStrong, borderColor: colors.primary},
+  countNumber: {fontSize: 22, fontWeight: '700', color: colors.text},
+  countUnit: {fontSize: 12, color: colors.textSecondary, marginTop: 1},
+  countTextActive: {color: colors.onPrimary},
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    backgroundColor: '#EEF4FF',
+    backgroundColor: colors.primarySoft,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -400,33 +405,33 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#3B6EF6',
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoCheck: {fontSize: 11, fontWeight: '800', color: '#3B6EF6'},
-  infoText: {flex: 1, fontSize: 12.5, color: '#4B5563', lineHeight: 18},
+  infoCheck: {fontSize: 11, fontWeight: '800', color: colors.primary},
+  infoText: {flex: 1, fontSize: 12.5, color: colors.textSecondary, lineHeight: 18},
   setupSpacer: {flex: 1, minHeight: 18},
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F4',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  chipActive: { backgroundColor: '#3B6EF6', borderColor: '#3B6EF6' },
-  chipText: { fontSize: 14, color: '#5B6472', fontWeight: '600' },
-  chipTextActive: { color: '#FFFFFF' },
+  chipActive: { backgroundColor: colors.primaryStrong, borderColor: colors.primary },
+  chipText: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
+  chipTextActive: { color: colors.onPrimary },
   startBtn: {
     marginTop: 24,
     marginBottom: 12,
-    backgroundColor: '#3B6EF6',
+    backgroundColor: colors.primaryStrong,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
-    shadowColor: '#3B6EF6',
+    shadowColor: colors.primary,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},
@@ -435,85 +440,85 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  statsText: { fontSize: 12.5, color: '#7B8494' },
+  statsText: { fontSize: 12.5, color: colors.textMuted },
   
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  progressText: { fontSize: 16, fontWeight: '700', color: '#1F2937' },
-  tag: { backgroundColor: '#EAF1FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  tagText: { color: '#3B6EF6', fontSize: 14, fontWeight: '700' },
+  progressText: { fontSize: 16, fontWeight: '700', color: colors.text },
+  tag: { backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
+  tagText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   
   questionBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 18,
     borderRadius: 14,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: colors.border,
     borderLeftWidth: 4,
-    borderLeftColor: '#3B6EF6',
+    borderLeftColor: colors.primary,
     elevation: 2,
-    shadowColor: '#1F2937',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: {width: 0, height: 4},
     minHeight: 150,
   },
-  questionLabel: { fontSize: 12, color: '#8A94A6', marginBottom: 10, letterSpacing: 0.4 },
-  questionText: { fontSize: 22, fontWeight: '600', color: '#1F2937', lineHeight: 34 },
+  questionLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 10, letterSpacing: 0.4 },
+  questionText: { fontSize: 22, fontWeight: '600', color: colors.text, lineHeight: 34 },
   optionList: { marginTop: 16, gap: 10 },
-  optionText: { fontSize: 16, color: '#3F4A5A', lineHeight: 26 },
+  optionText: { fontSize: 16, color: colors.textSecondary, lineHeight: 26 },
   choiceRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   choiceBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DDE5F2',
-    backgroundColor: '#F8FAFF',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
   },
-  choiceBtnActive: { borderColor: '#3B6EF6', backgroundColor: '#EAF1FF' },
-  choiceBtnCorrect: { borderColor: '#34C759', backgroundColor: '#E9F9EF' },
-  choiceBtnWrong: { borderColor: '#FF3B30', backgroundColor: '#FDECEC' },
-  choiceText: { textAlign: 'center', fontSize: 18, fontWeight: '700', color: '#1F2937' },
+  choiceBtnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  choiceBtnCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
+  choiceBtnWrong: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+  choiceText: { textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.text },
   
   answerBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 18,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: colors.border,
     elevation: 2,
-    shadowColor: '#1F2937',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {width: 0, height: 4},
   },
-  input: { backgroundColor: '#F8FAFF', borderWidth: 1, borderColor: '#E2E8F4', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 15 },
-  inputCorrect: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
-  inputWrong: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
+  input: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 10, padding: 15, fontSize: 16, color: colors.text, marginBottom: 15 },
+  inputCorrect: { borderColor: colors.success, backgroundColor: colors.successSoft },
+  inputWrong: { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
   
   primaryBtn: {
-    backgroundColor: '#3B6EF6',
+    backgroundColor: colors.primaryStrong,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     elevation: 2,
-    shadowColor: '#3B6EF6',
+    shadowColor: colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 3},
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
   
   resultBox: { alignItems: 'center' },
   resultText: { fontSize: 20, fontWeight: '700', marginBottom: 10 },
-  correctAnswerText: { fontSize: 16, color: '#666', marginBottom: 20, textAlign: 'center' },
+  correctAnswerText: { fontSize: 16, color: colors.textMuted, marginBottom: 20, textAlign: 'center' },
 });

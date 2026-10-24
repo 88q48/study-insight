@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MistakesScreen } from '../../features/mistakes';
 import { StudyScreen } from '../../features/study';
+import { useAppColors } from '../../shared/theme/colors';
+import type { AppColors } from '../../shared/theme/colors';
 
 type PracticeMode = 'study' | 'mistakes';
 
 export default function PracticeScreen() {
   const [mode, setMode] = useState<PracticeMode>('study');
   const insets = useSafeAreaInsets();
+  const colors = useAppColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={[styles.container, {paddingTop: insets.top + 18}]}>
@@ -50,39 +54,45 @@ export default function PracticeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F5FF' },
-  headerBlock: {paddingHorizontal: 24, marginBottom: 18},
-  kicker: {fontSize: 16, color: '#6B7280', marginBottom: 4},
-  title: {fontSize: 40, fontWeight: '800', color: '#111827', letterSpacing: 1},
-  switcher: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 18,
-    padding: 5,
-    borderRadius: 18,
-    backgroundColor: '#ECEFFA',
-  },
-  segment: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 11,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#111827',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 3},
-    elevation: 2,
-  },
-  segmentIcon: {fontSize: 18, color: '#6B7280'},
-  segmentIconActive: {color: '#3B6EF6'},
-  segmentText: {fontSize: 16, fontWeight: '600', color: '#6B7280'},
-  segmentTextActive: {color: '#3B6EF6'},
-  body: { flex: 1, paddingBottom: 92 },
-});
+const makeStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    container: {flex: 1, backgroundColor: colors.background},
+    headerBlock: {paddingHorizontal: 24, marginBottom: 18},
+    kicker: {fontSize: 16, color: colors.textSecondary, marginBottom: 4},
+    title: {
+      fontSize: 40,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    switcher: {
+      flexDirection: 'row',
+      marginHorizontal: 20,
+      marginBottom: 18,
+      padding: 5,
+      borderRadius: 18,
+      backgroundColor: colors.primarySoft,
+    },
+    segment: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: 8,
+      paddingVertical: 11,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentActive: {
+      backgroundColor: colors.surface,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: {width: 0, height: 3},
+      elevation: 2,
+    },
+    segmentIcon: {fontSize: 18, color: colors.textMuted},
+    segmentIconActive: {color: colors.primary},
+    segmentText: {fontSize: 16, fontWeight: '600', color: colors.textMuted},
+    segmentTextActive: {color: colors.primary},
+    body: {flex: 1, paddingBottom: 92},
+  });

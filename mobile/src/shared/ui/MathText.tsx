@@ -1,6 +1,8 @@
 import React from 'react';
 import { Platform, StyleProp, StyleSheet, Text, TextStyle } from 'react-native';
 
+import { useAppColors } from '../theme/colors';
+
 const SUPERSCRIPTS: Record<string, string> = {
   '0': '⁰',
   '1': '¹',
@@ -133,8 +135,12 @@ export default function MathText({
   style,
   numberOfLines,
 }: MathTextProps) {
+  const colors = useAppColors();
   return (
-    <Text style={[styles.math, style]} numberOfLines={numberOfLines}>
+    <Text
+      style={[styles.math, {color: colors.text}, style]}
+      numberOfLines={numberOfLines}
+    >
       {formatLatex(nodeToText(children))}
     </Text>
   );
@@ -147,6 +153,5 @@ const styles = StyleSheet.create({
       android: 'serif',
       default: 'serif',
     }),
-    color: '#1f2937',
   },
 });

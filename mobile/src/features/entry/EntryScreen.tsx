@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,12 @@ import { createError } from '../../shared/api/client';
 import type { QuestionType } from '../../shared/api/types';
 import { CHOICE_KEYS } from '../../shared/domain/error';
 import type { ChoiceKey } from '../../shared/domain/error';
+import { useAppColors } from '../../shared/theme/colors';
+import type { AppColors } from '../../shared/theme/colors';
 
 export default function EntryScreen() {
+  const colors = useAppColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [subject, setSubject] = useState('');
   const [knowledgePoint, setKnowledgePoint] = useState('');
   const [question, setQuestion] = useState('');
@@ -174,7 +178,7 @@ export default function EntryScreen() {
         >
           {isOcrLoading ? (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ActivityIndicator color="#fff" style={{ marginRight: 10 }} />
+              <ActivityIndicator color={colors.onPrimary} style={{ marginRight: 10 }} />
               <Text style={styles.ocrBtnText}>正在识别中...</Text>
             </View>
           ) : (
@@ -206,7 +210,7 @@ export default function EntryScreen() {
         <TextInput
           style={styles.input}
           placeholder="例如：数学"
-          placeholderTextColor="#9AA4B2"
+          placeholderTextColor={colors.placeholder}
           value={subject}
           onChangeText={setSubject}
         />
@@ -215,7 +219,7 @@ export default function EntryScreen() {
         <TextInput
           style={styles.input}
           placeholder="例如：导数"
-          placeholderTextColor="#9AA4B2"
+          placeholderTextColor={colors.placeholder}
           value={knowledgePoint}
           onChangeText={setKnowledgePoint}
         />
@@ -226,7 +230,7 @@ export default function EntryScreen() {
           multiline
           textAlignVertical="top"
           placeholder="输入题目..."
-          placeholderTextColor="#9AA4B2"
+          placeholderTextColor={colors.placeholder}
           value={question}
           onChangeText={setQuestion}
         />
@@ -244,7 +248,7 @@ export default function EntryScreen() {
                 <TextInput
                   style={[styles.input, styles.optionInput]}
                   placeholder={`选项 ${key}`}
-                  placeholderTextColor="#9AA4B2"
+                  placeholderTextColor={colors.placeholder}
                   value={options[key]}
                   onChangeText={value => updateOption(key, value)}
                 />
@@ -274,7 +278,7 @@ export default function EntryScreen() {
               multiline
               textAlignVertical="top"
               placeholder="输入答案..."
-              placeholderTextColor="#9AA4B2"
+              placeholderTextColor={colors.placeholder}
               value={answer}
               onChangeText={setAnswer}
             />
@@ -295,79 +299,97 @@ export default function EntryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F6FC' },
-  ocrBtn: {
-    backgroundColor: '#34C759',
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'center'
-  },
-  ocrBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  label: { fontSize: 15, fontWeight: '600', color: '#4B5563', marginBottom: 8 },
-  typeRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F4',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-  },
-  typeBtnActive: { backgroundColor: '#3B6EF6', borderColor: '#3B6EF6' },
-  typeBtnText: { fontSize: 15, fontWeight: '600', color: '#5B6472' },
-  typeBtnTextActive: { color: '#fff' },
-  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  optionBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#EAF1FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionBadgeActive: { backgroundColor: '#34C759' },
-  optionBadgeText: { color: '#3B6EF6', fontWeight: 'bold' },
-  optionBadgeTextActive: { color: '#fff' },
-  optionInput: { flex: 1, marginBottom: 0 },
-  correctRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  correctBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F4',
-    backgroundColor: '#F8FAFF',
-    alignItems: 'center',
-  },
-  correctBtnActive: { backgroundColor: '#34C759', borderColor: '#34C759' },
-  correctBtnText: { fontSize: 16, fontWeight: 'bold', color: '#666' },
-  correctBtnTextActive: { color: '#fff' },
-  input: {
-    backgroundColor: '#F8FAFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F4',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 15
-  },
-  submitBtn: {
-    backgroundColor: '#3B6EF6',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 40,
-    elevation: 2,
-    shadowColor: '#3B6EF6',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 3},
-  },
-  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-});
+const makeStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    container: {flex: 1, backgroundColor: colors.surfaceAlt},
+    ocrBtn: {
+      backgroundColor: colors.successStrong,
+      padding: 16,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginBottom: 20,
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    ocrBtnText: {color: colors.onPrimary, fontSize: 16, fontWeight: '700'},
+    label: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    typeRow: {flexDirection: 'row', gap: 10, marginBottom: 15},
+    typeBtn: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+    },
+    typeBtnActive: {
+      backgroundColor: colors.primaryStrong,
+      borderColor: colors.primary,
+    },
+    typeBtnText: {fontSize: 15, fontWeight: '600', color: colors.textSecondary},
+    typeBtnTextActive: {color: colors.onPrimary},
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10,
+    },
+    optionBadge: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    optionBadgeActive: {backgroundColor: colors.successStrong},
+    optionBadgeText: {color: colors.primary, fontWeight: 'bold'},
+    optionBadgeTextActive: {color: colors.onPrimary},
+    optionInput: {flex: 1, marginBottom: 0},
+    correctRow: {flexDirection: 'row', gap: 10, marginBottom: 20},
+    correctBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+    },
+    correctBtnActive: {
+      backgroundColor: colors.successStrong,
+      borderColor: colors.success,
+    },
+    correctBtnText: {fontSize: 16, fontWeight: 'bold', color: colors.textSecondary},
+    correctBtnTextActive: {color: colors.onPrimary},
+    input: {
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 16,
+      color: colors.text,
+      marginBottom: 15,
+    },
+    submitBtn: {
+      backgroundColor: colors.primaryStrong,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 10,
+      marginBottom: 40,
+      elevation: 2,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      shadowOffset: {width: 0, height: 3},
+    },
+    submitBtnText: {color: colors.onPrimary, fontSize: 18, fontWeight: '700'},
+  });
